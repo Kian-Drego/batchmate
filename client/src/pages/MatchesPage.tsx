@@ -1,202 +1,173 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Filter, GraduationCap, Search, Target } from 'lucide-react';
-import { api } from '../lib/api';
-import type { Match, MatchResponse } from '../lib/types';
-import { deadlineLabel, inr } from '../lib/format';
-import { MatchReasonList } from '../components/MatchReasons';
-import {
-  Badge,
-  Button,
-  EmptyState,
-  Panel,
-  Progress,
-  SectionHeader,
-  Spinner,
-  TierBadge,
-} from '../components/ui';
+import { useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { ArrowDownUp, Search, SlidersHorizontal, X } from 'lucide-react';
+import { SCHOLARSHIP_TYPES } from '../lib/constants';
+import { useMatches, type Match } from '../lib/queries';
+import ScholarshipCard from '../components/ScholarshipCard';
+import { Button, ChipGroup, Empty, IconButton, Input, ListSkeleton, Notice, PageTitle, Sheet, Switch, Tabs } from '../components/ui';
 
-type FilterKey = 'all' | 'high' | 'possible' | 'info';
+type TierKey = 'highly' | 'possibly' | 'needs';
+type SortKey = 'fit' | 'deadline' | 'amount';
 
-const FILTERS: { key: FilterKey; label: string }[] = [
-  { key: 'all', label: 'All matches' },
-  { key: 'high', label: 'Highly eligible' },
-  { key: 'possible', label: 'Possibly eligible' },
-  { key: 'info', label: 'Needs information' },
-];
+const SORTS: Record<SortKey, { label: string; fn: (a: Match, b: Match) => number }> = {
+  fit: { label: 'Best fit', fn: (a, b) => b.fitScore - a.fitScore },
+  deadline: {
+    label: 'Deadline',
+    fn: (a, b) =>
+      (a.scholarship.deadline ? Date.parse(a.scholarship.deadline) : Infinity) - (b.scholarship.deadline ? Date.parse(b.scholarship.deadline) : Infinity),
+  },
+  amount: { label: 'Amount', fn: (a, b) => Number(b.scholarship.amount) - Number(a.scholarship.amount) },
+};
 
 export default function MatchesPage() {
-  const [data, setData] = useState<MatchResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<FilterKey>('all');
+  const { data, isLoading, error } = useMatches();
+  const [params, setParams] = useSearchParams();
   const [query, setQuery] = useState('');
+  const [sort, setSort] = useState<SortKey>('fit');
+  const [type, setType] = useState<string | null>(null);
+  const [testOnly, setTestOnly] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
-  useEffect(() => {
-    api
-      .get<MatchResponse>('/passport/matches')
-      .then(setData)
-      .finally(() => setLoading(false));
-  }, []);
+  const lists: Record<TierKey, Match[]> = {
+    highly: data?.highlyEligible ?? [],
+    possibly: data?.possiblyEligible ?? [],
+    needs: data?.needsInfo ?? [],
+  };
+  const fallback: TierKey = lists.highly.length ? 'highly' : lists.possibly.length ? 'possibly' : lists.needs.length ? 'needs' : 'highly';
+  const tier = (params.get('tier') as TierKey) || fallback;
 
-  const list: Match[] = useMemo(() => {
-    if (!data) return [];
-    const base =
-      filter === 'high'
-        ? data.grouped.highlyEligible
-        : filter === 'possible'
-          ? data.grouped.possiblyEligible
-          : filter === 'info'
-            ? data.grouped.needsInfo
-            : data.matches;
+  const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return q
-      ? base.filter(
-          (m) =>
-            m.scholarship.title.toLowerCase().includes(q) ||
-            m.scholarship.provider.toLowerCase().includes(q)
-        )
-      : base;
-  }, [data, filter, query]);
+    return lists[tier]
+      .filter((m) => !q || `${m.scholarship.title} ${m.scholarship.provider} ${m.scholarship.tags.join(' ')}`.toLowerCase().includes(q))
+      .filter((m) => !type || m.scholarship.type === type)
+      .filter((m) => !testOnly || m.scholarship.aptitude_test_required)
+      .sort(SORTS[sort].fn);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, tier, query, sort, type, testOnly]);
 
-  if (loading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <Spinner className="h-6 w-6" />
-      </div>
-    );
-  }
-
-  const counts: Record<FilterKey, number> = {
-    all: data?.matches.length ?? 0,
-    high: data?.grouped.highlyEligible.length ?? 0,
-    possible: data?.grouped.possiblyEligible.length ?? 0,
-    info: data?.grouped.needsInfo.length ?? 0,
+  const activeFilters = Number(Boolean(type)) + Number(testOnly);
+  const clear = () => {
+    setQuery('');
+    setType(null);
+    setTestOnly(false);
   };
 
   return (
     <div>
-      <SectionHeader
-        eyebrow="Hybrid matching engine"
-        title="Matched scholarships"
-        description="Hard eligibility filters applied first, then a weighted 0–100 fit score based on income closeness, academic standing and document readiness."
+      <PageTitle kicker={`${data?.all.length ?? 0} scholarships you can apply for`} title="Matches" />
+
+      {error && <Notice tone="rose">{(error as Error).message}</Notice>}
+
+      <Tabs
+        id="tiers"
+        value={tier}
+        onChange={(v) => setParams({ tier: v }, { replace: true })}
+        options={[
+          { value: 'highly', label: 'Strong fit', count: lists.highly.length },
+          { value: 'possibly', label: 'Good fit', count: lists.possibly.length },
+          { value: 'needs', label: 'Needs info', count: lists.needs.length },
+        ]}
       />
 
-      <div className="mb-5 flex flex-wrap items-center gap-3">
-        <div className="flex flex-wrap gap-1.5">
-          {FILTERS.map((f) => (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              className={`inline-flex min-h-[2.5rem] items-center gap-1.5 rounded-card border px-3 py-2.5 text-xs font-semibold transition-colors ${
-                filter === f.key
-                  ? 'border-line bg-inverse text-inverse-fg'
-                  : 'border-line-faint bg-paper-raised text-ink-soft hover:bg-paper-sunken'
-              }`}
-            >
-              <Filter className="h-3 w-3" aria-hidden />
-              {f.label}
-              <span className="data-value opacity-70">{counts[f.key]}</span>
-            </button>
-          ))}
+      <div className="mt-4 flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-ink-3" />
+          <Input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by name or provider" className="rounded-full pl-11" aria-label="Search scholarships" />
         </div>
-        <div className="relative ml-auto w-full sm:w-64">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-faint" />
-          <input
-            className="input pl-9"
-            placeholder="Search provider or scheme"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </div>
+        <IconButton
+          label={`Sort: ${SORTS[sort].label}`}
+          className="h-[52px] w-[52px] border border-line bg-card shadow-soft"
+          onClick={() => setSort((s) => (s === 'fit' ? 'deadline' : s === 'deadline' ? 'amount' : 'fit'))}
+        >
+          <ArrowDownUp className="h-5 w-5" />
+        </IconButton>
+        <IconButton label="Filters" className="relative h-[52px] w-[52px] border border-line bg-card shadow-soft" onClick={() => setFiltersOpen(true)}>
+          <SlidersHorizontal className="h-5 w-5" />
+          {activeFilters > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 flex h-5 w-5 animate-pop items-center justify-center rounded-full bg-accent text-[11px] font-bold text-white">{activeFilters}</span>
+          )}
+        </IconButton>
       </div>
 
-      {list.length === 0 ? (
-        <EmptyState
-          icon={Target}
-          title="No scholarships in this view"
-          description={
-            filter === 'info'
-              ? 'Great — no scheme is waiting on missing information.'
-              : 'Adjust the filter, or complete your passport to unlock more matches.'
-          }
-          action={
-            <Link to="/passport">
-              <Button variant="secondary" size="sm">
-                Open passport
-              </Button>
-            </Link>
-          }
-        />
-      ) : (
-        <div className="grid gap-4">
-          {list.map((m) => {
-            const dl = deadlineLabel(m.scholarship.deadline);
-            const tone = dl.tone === 'urgent' ? 'stop' : dl.tone === 'soon' ? 'caution' : 'neutral';
-            return (
-              <Panel key={m.scholarshipId} className="overflow-hidden">
-                <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-start">
-                  {/* Score column */}
-                  <div className="flex shrink-0 items-center gap-3 sm:w-40 sm:flex-col sm:items-start">
-                    <div>
-                      <div className="label-eyebrow">Fit score</div>
-                      <div
-                        className={`font-mono text-3xl font-semibold tabular-nums ${
-                          m.fitScore >= 80 ? 'text-eligible' : 'text-caution'
-                        }`}
-                      >
-                        {m.fitScore}
-                        <span className="text-base text-ink-faint">/100</span>
-                      </div>
-                    </div>
-                    <div className="w-full">
-                      <Progress value={m.fitScore} tone={m.fitScore >= 80 ? 'eligible' : 'caution'} />
-                    </div>
-                  </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2 px-1 text-[13px] text-ink-3">
+        <span>
+          Sorted by <b className="font-semibold text-ink-2">{SORTS[sort].label.toLowerCase()}</b>
+        </span>
+        {type && (
+          <button onClick={() => setType(null)} className="press inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1 font-semibold text-primary-fg">
+            {type} <X className="h-3 w-3" />
+          </button>
+        )}
+        {testOnly && (
+          <button onClick={() => setTestOnly(false)} className="press inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1 font-semibold text-primary-fg">
+            Has a test <X className="h-3 w-3" />
+          </button>
+        )}
+      </div>
 
-                  {/* Details */}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <TierBadge tier={m.tier} />
-                      {m.scholarship.aptitudeTestRequired && (
-                        <Badge tone="lavender">
-                          <GraduationCap className="h-3 w-3" /> Aptitude test
-                        </Badge>
-                      )}
-                      <Badge tone={tone as never}>{dl.text}</Badge>
-                    </div>
-                    <Link
-                      to={`/scholarships/${m.scholarshipId}`}
-                      className="mt-2 block font-serif text-xl font-semibold text-ink hover:underline"
-                    >
-                      {m.scholarship.title}
-                    </Link>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-soft">
-                      <span>{m.scholarship.provider}</span>
-                      <span className="data-value font-semibold text-ink">
-                        {inr(m.scholarship.amount)}
-                      </span>
-                      <span className="text-ink-faint">{m.scholarship.type}</span>
-                    </div>
-
-                    <div className="mt-3 border-t border-line-faint pt-3">
-                      <MatchReasonList reasons={m.reasons.slice(0, 4)} />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between gap-3 border-t border-line-faint bg-paper-sunken/60 px-5 py-3">
-                  <span className="text-xs text-ink-faint">
-                    {m.reasons.length} match conditions evaluated
-                  </span>
-                  <Link to={`/scholarships/${m.scholarshipId}`}>
-                    <Button size="sm">Review & apply</Button>
-                  </Link>
-                </div>
-              </Panel>
-            );
-          })}
-        </div>
+      {tier === 'needs' && lists.needs.length > 0 && (
+        <Notice tone="butter" className="mt-4">
+          You might qualify for these — we just need a little more about you.{' '}
+          <Link to="/passport" className="font-semibold underline underline-offset-4">
+            Update passport
+          </Link>
+        </Notice>
       )}
+
+      <div className="mt-4">
+        {isLoading ? (
+          <ListSkeleton rows={4} />
+        ) : visible.length === 0 ? (
+          <Empty
+            title={query || activeFilters ? 'No results for that' : 'Nothing here yet'}
+            description={query || activeFilters ? 'Try a different search or clear your filters.' : 'Fill in more of your passport and new matches appear instantly.'}
+            action={
+              query || activeFilters ? (
+                <Button variant="soft" onClick={clear}>
+                  Clear all
+                </Button>
+              ) : (
+                <Link to="/passport">
+                  <Button>Update passport</Button>
+                </Link>
+              )
+            }
+          />
+        ) : (
+          <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            {visible.map((m, i) => (
+              <li key={m.scholarshipId} className="min-w-0">
+                <ScholarshipCard scholarship={m.scholarship} tier={m.tier} fitScore={m.fitScore} index={i} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <Sheet
+        open={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        title="Filter"
+        footer={
+          <div className="flex gap-2">
+            <Button variant="soft" className="flex-1" onClick={() => { setType(null); setTestOnly(false); }}>
+              Reset
+            </Button>
+            <Button className="flex-[2]" onClick={() => setFiltersOpen(false)}>
+              Show {visible.length}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-6">
+          <div>
+            <div className="mb-3 pl-1 text-[13px] font-semibold text-ink-2">Scholarship type</div>
+            <ChipGroup label="Scholarship type" options={SCHOLARSHIP_TYPES} value={type} onChange={setType} />
+          </div>
+          <Switch checked={testOnly} onChange={setTestOnly} label="Has an aptitude test" description="Ones you can practise for in Prep." />
+        </div>
+      </Sheet>
     </div>
   );
 }

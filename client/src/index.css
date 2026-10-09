@@ -1,134 +1,173 @@
+/* Latin-only variable fonts: Bricolage Grotesque (display, 41 KB) + Figtree (text, 20 KB). */
+@font-face {
+  font-family: 'Bricolage Grotesque Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 800;
+  src: url('../../node_modules/@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2')
+    format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+20B9, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Figtree Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 300 900;
+  src: url('../../node_modules/@fontsource-variable/figtree/files/figtree-latin-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+20B9, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  /* Light — oat paper, warm ink, pastel families */
   :root {
     color-scheme: light;
+    --canvas: 242 238 231;
+    --card: 252 250 246;
+    --sunken: 234 229 220;
+    --line: 223 216 204;
+    --ink: 32 29 26;
+    --ink-2: 98 92 84;
+    --ink-3: 146 139 129;
+    --primary: 32 29 26;
+    --primary-fg: 252 250 246;
+    --accent: 226 98 56;
+    --shade: 74 52 30;
+    --hl: 0.75;
 
-    /* Text (ink) — near-black with a violet undertone */
-    --ink: 26 22 38;
-    --ink-soft: 69 63 87;
-    --ink-faint: 111 106 128;
+    --peach: 248 222 204;
+    --peach-ink: 133 62 26;
+    --sage: 216 230 209;
+    --sage-ink: 44 94 52;
+    --lilac: 225 219 246;
+    --lilac-ink: 78 62 152;
+    --butter: 246 232 182;
+    --butter-ink: 118 86 8;
+    --sky: 211 228 240;
+    --sky-ink: 30 86 130;
+    --rose: 247 217 216;
+    --rose-ink: 152 40 48;
 
-    /* Surfaces (paper) — lavender-tinted paper */
-    --paper: 246 243 251;
-    --paper-raised: 255 255 255;
-    --paper-sunken: 237 232 247;
-
-    /* Rules */
-    --line: 26 22 38;
-    --line-faint: 216 209 232;
-
-    /* Accent — lavender */
-    --lavender: 122 87 209;
-    --lavender-ink: 90 59 166;
-    --lavender-soft: 237 230 252;
-
-    /* Semantic states */
-    --eligible: 14 122 84;
-    --eligible-soft: 220 242 232;
-    --caution: 168 94 6;
-    --caution-soft: 251 235 211;
-    --stop: 179 38 30;
-    --stop-soft: 248 225 223;
-
-    /* Solid-ink surfaces (primary buttons, active nav, badges) */
-    --inverse: 26 22 38;
-    --inverse-fg: 246 243 251;
+    --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.3 0 0 0 0 0.22 0 0 0 0 0.14 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
-  .dark {
+  /* Dark — warm charcoal, never pure black; pastels become deep muted tints */
+  :root.dark {
     color-scheme: dark;
+    --canvas: 22 21 19;
+    --card: 32 30 27;
+    --sunken: 26 25 22;
+    --line: 50 47 42;
+    --ink: 238 233 224;
+    --ink-2: 178 171 160;
+    --ink-3: 124 118 109;
+    --primary: 238 233 224;
+    --primary-fg: 26 24 21;
+    --accent: 242 136 96;
+    --shade: 0 0 0;
+    --hl: 0.05;
 
-    /* Text (ink) — soft lavender-greys, not pure white, to lower glare */
-    --ink: 210 206 224;
-    --ink-soft: 168 162 188;
-    --ink-faint: 126 120 145;
+    --peach: 64 42 31;
+    --peach-ink: 248 198 170;
+    --sage: 37 52 38;
+    --sage-ink: 184 222 178;
+    --lilac: 45 40 70;
+    --lilac-ink: 202 192 246;
+    --butter: 60 51 24;
+    --butter-ink: 240 214 142;
+    --sky: 30 45 58;
+    --sky-ink: 168 206 234;
+    --rose: 64 32 34;
+    --rose-ink: 245 174 174;
 
-    /* Surfaces (paper) — violet-tinted charcoal instead of neutral black */
-    --paper: 26 24 34;
-    --paper-raised: 34 31 44;
-    --paper-sunken: 20 18 24;
+    --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.035 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
 
-    /* Rules — quiet, low-contrast separation */
-    --line: 58 53 72;
-    --line-faint: 42 39 53;
-
-    /* Accent — lifted lavender for contrast on dark surfaces */
-    --lavender: 178 152 240;
-    --lavender-ink: 205 188 247;
-    --lavender-soft: 46 39 67;
-
-    /* Semantic states — softened hues on deep tinted grounds */
-    --eligible: 116 203 168;
-    --eligible-soft: 24 46 38;
-    --caution: 224 178 112;
-    --caution-soft: 47 38 24;
-    --stop: 232 148 140;
-    --stop-soft: 49 29 27;
-
-    /* Solid-ink surfaces become a muted lavender-slate, not bright white */
-    --inverse: 69 63 87;
-    --inverse-fg: 228 224 236;
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+    text-rendering: optimizeLegibility;
   }
 
   html,
   body,
   #root {
-    height: 100%;
+    min-height: 100%;
   }
 
   body {
-    @apply bg-paper text-ink font-sans antialiased;
-    /* Subtle paper grain via layered radial dots; not a blurry gradient hero. */
-    background-image: radial-gradient(rgb(var(--ink) / 0.05) 1px, transparent 1px);
-    background-size: 22px 22px;
+    @apply bg-canvas font-sans text-[15px] text-ink antialiased;
+    background-image: var(--grain); /* static paper grain — tiles once, cached */
+    overscroll-behavior-y: none;
   }
 
   h1,
   h2,
   h3 {
-    @apply font-serif tracking-tight;
-  }
-
-  :focus-visible {
-    @apply outline-none ring-2 ring-lavender ring-offset-2 ring-offset-paper;
+    font-family: theme('fontFamily.display');
+    letter-spacing: -0.025em;
   }
 
   ::selection {
-    background: #7a57d1;
-    color: #fff;
+    background: rgb(var(--accent) / 0.25);
+  }
+
+  :focus-visible {
+    outline: 2px solid rgb(var(--accent));
+    outline-offset: 3px;
+    border-radius: 14px;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px; /* prevents iOS zoom-on-focus */
+  }
+
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
   }
 }
 
 @layer components {
-  .label-eyebrow {
-    @apply font-mono text-xs uppercase tracking-[0.18em] text-ink-faint;
+  .surface {
+    @apply rounded-4xl border border-line/70 bg-card shadow-soft;
   }
-
-  .panel {
-    @apply border border-line bg-paper-raised rounded-card;
+  .grainy {
+    background-image: var(--grain);
   }
-
-  .panel-flat {
-    @apply border border-line-faint bg-paper-raised rounded-card;
+  /* Physical press: sinks 1px and loses its lift. */
+  .press {
+    @apply transition-[transform,box-shadow,background-color,color,border-color] duration-200 ease-out active:translate-y-px active:scale-[0.985] motion-reduce:transition-none motion-reduce:active:transform-none;
   }
-
-  .field-label {
-    @apply block text-sm font-semibold text-ink mb-1.5;
+  .num {
+    font-family: theme('fontFamily.display');
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
   }
-
-  .field-hint {
-    @apply text-xs text-ink-faint mt-1;
+  .no-scrollbar {
+    scrollbar-width: none;
   }
-
-  .input {
-    @apply w-full min-h-[2.75rem] border border-line bg-paper-raised rounded-card px-3 py-2.5 text-sm text-ink
-      placeholder:text-ink-faint focus:border-lavender focus:ring-1 focus:ring-lavender;
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
   }
+}
 
-  .data-value {
-    @apply font-mono tabular-nums;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

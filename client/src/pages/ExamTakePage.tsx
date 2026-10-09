@@ -1,395 +1,387 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import {
-  ArrowLeft,
-  ArrowRight,
-  CheckCircle2,
-  Clock,
-  Flag,
-  RotateCcw,
-  XCircle,
-} from 'lucide-react';
-import { api } from '../lib/api';
-import type { AttemptResult, MockTestPayload } from '../lib/types';
-import {
-  Alert,
-  Badge,
-  Button,
-  EmptyState,
-  Panel,
-  Progress,
-  SectionHeader,
-  Spinner,
-  Stat,
-} from '../components/ui';
+import { AnimatePresence, m } from 'framer-motion';
+import { toast } from 'sonner';
+import { ArrowLeft, ArrowRight, Check, Clock, Grid2x2, X } from 'lucide-react';
+import { useMockTest, useSubmitMock, type AttemptResult } from '../lib/queries';
+import { tick } from '../lib/haptics';
+import { Button, CountUp, Dial, Empty, IconButton, Meter, Notice, Sheet, Spinner, Surface, Tag, cn } from '../components/ui';
 
-type Phase = 'loading' | 'intro' | 'taking' | 'result';
+const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F'];
 
-function formatClock(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+function fmt(sec: number): string {
+  return `${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`;
+}
+
+function Results({ result, onRetry }: { result: AttemptResult; onRetry: () => void }) {
+  const a = result.attempt;
+  const headline = a.accuracy >= 80 ? 'Beautifully done.' : a.accuracy >= 60 ? 'Solid run.' : a.accuracy >= 40 ? 'Getting there.' : 'Run it back.';
+  return (
+    <div className="mx-auto max-w-2xl px-4 pb-16 pt-[calc(1.5rem+env(safe-area-inset-top))]">
+      <Surface tone="sage" grain className="flex flex-col items-center rounded-5xl px-6 py-9 text-center">
+        <m.div initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 18 }}>
+          <Dial value={a.accuracy} size={156} stroke={11} color="rgb(var(--sage-ink))" track="rgb(var(--sage-ink) / 0.15)">
+            <div>
+              <div className="num text-[46px] font-semibold leading-none">
+                <CountUp value={a.accuracy} suffix="%" />
+              </div>
+              <div className="mt-1 text-[12px] font-semibold opacity-70">accuracy</div>
+            </div>
+          </Dial>
+        </m.div>
+        <h1 className="mt-5 text-[30px] font-semibold">{headline}</h1>
+        <p className="mt-1 text-[14.5px] opacity-80">
+          Score {a.score}/{a.maxScore} · {a.avgSeconds}s per question · readiness {a.readinessScore}
+        </p>
+      </Surface>
+
+      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {a.sectionStats.map((s) => (
+          <Surface key={s.section} className="p-4">
+            <div className="truncate text-[12.5px] text-ink-3">{s.section}</div>
+            <div className="num text-[24px] font-semibold">
+              {s.correct}/{s.total}
+            </div>
+            <div className="text-[12px] text-ink-3">{s.avgSeconds}s each</div>
+          </Surface>
+        ))}
+      </div>
+
+      {a.weakTopics.length > 0 && (
+        <Notice tone="butter" className="mt-3">
+          Next, focus on <b className="font-semibold">{a.weakTopics.map((t) => t.topic).join(', ')}</b>.
+        </Notice>
+      )}
+
+      <h2 className="mb-3 mt-9 px-1 text-[21px] font-semibold">Review</h2>
+      <ol className="space-y-3">
+        {result.review.map((r, i) => (
+          <li key={r.questionId} className="surface p-5">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[12.5px] font-semibold text-ink-3">
+                Q{i + 1} · {r.topic}
+              </span>
+              <Tag tone={r.correct ? 'sage' : r.selectedIndex === null ? 'butter' : 'rose'}>{r.correct ? 'Correct' : r.selectedIndex === null ? 'Skipped' : 'Missed'}</Tag>
+            </div>
+            <p className="mt-2 text-[15px] font-medium leading-relaxed">{r.prompt}</p>
+            <ul className="mt-3 space-y-1.5">
+              {r.options.map((o, oi) => (
+                <li
+                  key={oi}
+                  className={cn(
+                    'rounded-2xl px-3.5 py-2 text-[14px]',
+                    oi === r.correctIndex ? 'bg-sage font-semibold text-sage-ink' : oi === r.selectedIndex ? 'bg-rose text-rose-ink line-through' : 'text-ink-2'
+                  )}
+                >
+                  {LETTERS[oi]}. {o}
+                </li>
+              ))}
+            </ul>
+            {r.explanation && <p className="mt-3 text-[13.5px] leading-relaxed text-ink-2">{r.explanation}</p>}
+          </li>
+        ))}
+      </ol>
+
+      <div className="mt-8 flex gap-2">
+        <Link to="/exams" className="flex-1">
+          <Button variant="soft" size="lg" block>
+            Back to Prep
+          </Button>
+        </Link>
+        <Button size="lg" className="flex-1" onClick={onRetry}>
+          Try again
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 export default function ExamTakePage() {
   const { scholarshipId } = useParams<{ scholarshipId: string }>();
   const navigate = useNavigate();
+  const { data, isLoading, error, refetch } = useMockTest(scholarshipId);
+  const submit = useSubmitMock();
 
-  const [phase, setPhase] = useState<Phase>('loading');
-  const [payload, setPayload] = useState<MockTestPayload | null>(null);
-  const [current, setCurrent] = useState(0);
+  const [started, setStarted] = useState(false);
+  const [index, setIndex] = useState(0);
+  const [direction, setDirection] = useState(1);
   const [answers, setAnswers] = useState<Record<string, number | null>>({});
   const [timeSpent, setTimeSpent] = useState<Record<string, number>>({});
   const [remaining, setRemaining] = useState(0);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const [result, setResult] = useState<AttemptResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const enteredAt = useRef(Date.now());
 
-  const questionStart = useRef<number>(Date.now());
-  const submittedRef = useRef(false);
+  const questions = data?.questions ?? [];
+  const q = questions[index];
+
+  const recordTime = useCallback(() => {
+    if (!q) return;
+    const secs = Math.round((Date.now() - enteredAt.current) / 1000);
+    setTimeSpent((t) => ({ ...t, [q.id]: (t[q.id] ?? 0) + secs }));
+    enteredAt.current = Date.now();
+  }, [q]);
+
+  const doSubmit = useCallback(() => {
+    if (!data || submit.isPending) return;
+    const secs = q ? Math.round((Date.now() - enteredAt.current) / 1000) : 0;
+    const finalTimes = q ? { ...timeSpent, [q.id]: (timeSpent[q.id] ?? 0) + secs } : timeSpent;
+    submit.mutate(
+      {
+        mockTestId: data.mockTest.id,
+        answers: questions.map((x) => ({ questionId: x.id, selectedIndex: answers[x.id] ?? null, timeSpentSeconds: finalTimes[x.id] ?? 0 })),
+      },
+      {
+        onSuccess: (r) => {
+          tick([10, 50, 10]);
+          setResult(r);
+          window.scrollTo({ top: 0 });
+        },
+        onError: (e) => toast.error(e.message),
+      }
+    );
+  }, [data, q, questions, answers, timeSpent, submit]);
 
   useEffect(() => {
-    if (!scholarshipId) return;
-    api
-      .post<MockTestPayload>(`/exams/${scholarshipId}/generate`)
-      .then((p) => {
-        setPayload(p);
-        setRemaining(p.mockTest.durationMinutes * 60);
-        setPhase('intro');
-      })
-      .catch((err) => setError((err as Error).message));
-  }, [scholarshipId]);
-
-  // Countdown timer while the test is running.
-  useEffect(() => {
-    if (phase !== 'taking') return;
-    const id = setInterval(() => {
-      setRemaining((r) => {
-        if (r <= 1) {
-          clearInterval(id);
-          void submit(true);
-          return 0;
-        }
-        return r - 1;
-      });
-    }, 1000);
+    if (!started || result) return;
+    const id = setInterval(() => setRemaining((r) => Math.max(0, r - 1)), 1000);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase]);
+  }, [started, result]);
 
-  const recordTime = () => {
-    if (!payload) return;
-    const q = payload.questions[current];
-    const elapsed = Math.round((Date.now() - questionStart.current) / 1000);
-    setTimeSpent((prev) => ({ ...prev, [q.id]: (prev[q.id] ?? 0) + elapsed }));
-    questionStart.current = Date.now();
-  };
-
-  const goTo = (index: number) => {
-    recordTime();
-    setCurrent(index);
-  };
-
-  const start = () => {
-    questionStart.current = Date.now();
-    setPhase('taking');
-  };
-
-  const submit = async (auto = false) => {
-    if (!payload || submittedRef.current) return;
-    submittedRef.current = true;
-    if (!auto) recordTime();
-    setSubmitting(true);
-    setError(null);
-    try {
-      const body = {
-        answers: payload.questions.map((q) => ({
-          questionId: q.id,
-          selectedIndex: answers[q.id] ?? null,
-          timeSpentSeconds: timeSpent[q.id] ?? 0,
-        })),
-      };
-      const data = await api.post<AttemptResult>(
-        `/exams/mock/${payload.mockTest.id}/submit`,
-        body
-      );
-      setResult(data);
-      setPhase('result');
-    } catch (err) {
-      setError((err as Error).message);
-      submittedRef.current = false;
-    } finally {
-      setSubmitting(false);
+  useEffect(() => {
+    if (started && !result && remaining === 0 && data) {
+      toast('Time’s up — submitting');
+      doSubmit();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remaining]);
+
+  useEffect(() => {
+    if (!started || result) return;
+    const fn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener('beforeunload', fn);
+    return () => window.removeEventListener('beforeunload', fn);
+  }, [started, result]);
+
+  const go = (next: number) => {
+    if (next < 0 || next >= questions.length) return;
+    recordTime();
+    setDirection(next > index ? 1 : -1);
+    setIndex(next);
   };
 
-  const answeredCount = useMemo(
-    () => Object.values(answers).filter((v) => v !== null && v !== undefined).length,
-    [answers]
-  );
+  const choose = (opt: number) => {
+    if (!q) return;
+    tick(6);
+    setAnswers((a) => ({ ...a, [q.id]: a[q.id] === opt ? null : opt }));
+  };
 
-  if (phase === 'loading') {
+  const begin = () => {
+    if (!data) return;
+    setRemaining(data.mockTest.durationMinutes * 60);
+    enteredAt.current = Date.now();
+    setStarted(true);
+  };
+
+  const retry = () => {
+    setResult(null);
+    setAnswers({});
+    setTimeSpent({});
+    setIndex(0);
+    setStarted(false);
+  };
+
+  if (isLoading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <Spinner className="h-6 w-6" />
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-3 px-6 text-center">
+        <Spinner className="h-7 w-7" />
+        <p className="text-[14.5px] text-ink-2">Setting your paper…</p>
+      </div>
+    );
+  }
+  if (error || !data) {
+    return (
+      <div className="mx-auto max-w-md px-4 pt-16">
+        <Empty
+          title="Couldn't load the test"
+          description={(error as Error)?.message ?? 'Try again in a moment.'}
+          action={
+            <div className="flex gap-2">
+              <Button variant="soft" onClick={() => navigate(-1)}>
+                Go back
+              </Button>
+              <Button onClick={() => void refetch()}>Retry</Button>
+            </div>
+          }
+        />
       </div>
     );
   }
 
-  if (error && !payload) {
-    return (
-      <EmptyState
-        icon={XCircle}
-        title="Could not load the mock test"
-        description={error}
-        action={
-          <Link to="/exams">
-            <Button variant="secondary" size="sm">
-              Back to exam hub
-            </Button>
-          </Link>
-        }
-      />
-    );
-  }
+  if (result) return <Results result={result} onRetry={retry} />;
 
-  if (!payload) return null;
+  const t = data.mockTest;
 
-  // ---- Intro --------------------------------------------------------------
-  if (phase === 'intro') {
+  if (!started) {
     return (
-      <div className="mx-auto max-w-2xl">
-        <button
-          onClick={() => navigate('/exams')}
-          className="mb-2 inline-flex min-h-[2.5rem] items-center gap-1.5 py-2 text-sm font-semibold text-ink-soft hover:text-ink"
-        >
-          <ArrowLeft className="h-4 w-4" /> Exam hub
-        </button>
-        <Panel className="p-6">
-          <Badge tone="lavender">Mock test ready</Badge>
-          <h1 className="mt-3 font-serif text-2xl font-semibold">{payload.mockTest.title}</h1>
-          <div className="mt-4 grid grid-cols-3 gap-4 border-y border-line-faint py-4">
-            <Stat label="Questions" value={payload.mockTest.totalQuestions} />
-            <Stat label="Duration" value={`${payload.mockTest.durationMinutes}m`} />
-            <Stat label="Source" value={payload.mockTest.source === 'ai' ? 'AI generated' : 'Curated'} />
+      <div className="mx-auto flex min-h-dvh max-w-lg flex-col px-4 pb-8 pt-[calc(1rem+env(safe-area-inset-top))]">
+        <IconButton label="Close" onClick={() => navigate(-1)} className="-ml-1 border border-line bg-card shadow-soft">
+          <X className="h-5 w-5" />
+        </IconButton>
+        <div className="flex flex-1 flex-col justify-center">
+          <span className="text-[13px] font-semibold text-ink-3">{t.source === 'ai' ? 'Freshly generated paper' : 'Curated paper'}</span>
+          <h1 className="mt-2 text-[34px] font-semibold leading-[1.05]">{t.title}</h1>
+          <div className="mt-7 grid grid-cols-3 gap-2">
+            {[
+              [t.totalQuestions, 'questions'],
+              [t.durationMinutes, 'minutes'],
+              [t.negativeMarking || 0, 'negative'],
+            ].map(([v, l]) => (
+              <Surface key={l as string} className="p-4 text-center">
+                <div className="num text-[30px] font-semibold leading-none">{v}</div>
+                <div className="mt-1 text-[12.5px] text-ink-3">{l}</div>
+              </Surface>
+            ))}
           </div>
-          <ul className="mt-4 space-y-2 text-sm text-ink-soft">
-            <li>· One question at a time with a countdown timer.</li>
-            <li>· Your time per question feeds the speed component of readiness.</li>
-            <li>· The test auto-submits when time runs out.</li>
+          <ul className="mt-7 space-y-2.5 text-[14.5px] text-ink-2">
+            <li>Tap an option to choose it, tap again to clear.</li>
+            <li>Jump around freely with the question grid.</li>
+            <li>The paper submits itself when time runs out.</li>
           </ul>
-          <Button className="mt-6 w-full" onClick={start}>
-            Start test <ArrowRight className="h-4 w-4" />
-          </Button>
-        </Panel>
+        </div>
+        <Button size="lg" block onClick={begin}>
+          Begin <ArrowRight className="h-5 w-5" />
+        </Button>
       </div>
     );
   }
 
-  // ---- Taking -------------------------------------------------------------
-  if (phase === 'taking') {
-    const q = payload.questions[current];
-    const last = current === payload.questions.length - 1;
-    const low = remaining <= 60;
+  const answered = questions.filter((x) => answers[x.id] != null).length;
+  const lowTime = remaining <= 60;
 
-    return (
-      <div className="mx-auto max-w-3xl">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div className="text-sm text-ink-soft">
-            Question <span className="data-value font-semibold text-ink">{current + 1}</span> /{' '}
-            {payload.questions.length}
-          </div>
-          <div
-            className={`inline-flex items-center gap-2 rounded-card border px-3 py-1.5 font-mono text-sm font-semibold ${
-              low ? 'border-stop bg-stop-soft text-stop' : 'border-line bg-paper-raised'
-            }`}
+  return (
+    <div className="mx-auto flex min-h-dvh max-w-2xl flex-col">
+      <header className="sticky top-0 z-20 bg-canvas/95 px-4 pt-safe-t">
+        <div className="flex h-16 items-center gap-3">
+          <IconButton
+            label="Quit test"
+            className="-ml-1 border border-line bg-card shadow-soft"
+            onClick={() => {
+              if (window.confirm('Leave this test? Your answers will be lost.')) navigate('/exams');
+            }}
           >
-            <Clock className="h-4 w-4" /> {formatClock(remaining)}
+            <X className="h-5 w-5" />
+          </IconButton>
+          <div className="flex-1">
+            <span className="num text-[18px] font-semibold">{index + 1}</span>
+            <span className="text-[14px] text-ink-3"> of {questions.length}</span>
+          </div>
+          <div className={cn('num inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[15px] font-semibold shadow-soft', lowTime ? 'bg-peach text-peach-ink' : 'bg-card')}>
+            <Clock className="h-4 w-4" /> {fmt(remaining)}
           </div>
         </div>
+        <Meter value={((index + 1) / questions.length) * 100} className="mb-2 h-1.5" />
+      </header>
 
-        <div className="mb-4">
-          <Progress value={((current + 1) / payload.questions.length) * 100} />
-        </div>
+      <main className="relative flex-1 overflow-hidden px-4 py-6">
+        <AnimatePresence mode="popLayout" initial={false} custom={direction}>
+          <m.div
+            key={q.id}
+            custom={direction}
+            initial={{ x: direction * 48, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: direction * -48, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 40 }}
+          >
+            <div className="flex flex-wrap gap-1.5">
+              <Tag tone="lilac">{q.section}</Tag>
+              <Tag>{q.topic}</Tag>
+            </div>
+            <p className="mt-5 font-display text-[23px] font-semibold leading-snug">{q.prompt}</p>
+            <ul className="mt-6 space-y-2.5">
+              {q.options.map((o, oi) => {
+                const selected = answers[q.id] === oi;
+                return (
+                  <li key={oi}>
+                    <button
+                      onClick={() => choose(oi)}
+                      className={cn(
+                        'press flex min-h-[60px] w-full items-center gap-4 rounded-3xl px-4 py-3 text-left text-[15.5px]',
+                        selected ? 'bg-primary text-primary-fg shadow-key' : 'border border-line bg-card shadow-soft'
+                      )}
+                    >
+                      <span className={cn('num flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[15px] font-semibold', selected ? 'bg-primary-fg/15' : 'bg-sunken')}>
+                        {LETTERS[oi]}
+                      </span>
+                      <span className="font-medium">{o}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </m.div>
+        </AnimatePresence>
+      </main>
 
-        <Panel className="p-6">
-          <div className="mb-3 flex items-center gap-2">
-            <Badge tone="neutral">{q.section}</Badge>
-            <Badge tone="neutral">{q.topic}</Badge>
-          </div>
-          <p className="text-lg font-medium leading-relaxed text-ink">{q.prompt}</p>
-
-          <div className="mt-5 space-y-2">
-            {q.options.map((opt, i) => {
-              const selected = answers[q.id] === i;
-              return (
-                <button
-                  key={i}
-                  onClick={() => setAnswers((prev) => ({ ...prev, [q.id]: i }))}
-                  className={`flex w-full items-center gap-3 rounded-card border px-4 py-3 text-left text-sm transition-colors ${
-                    selected
-                      ? 'border-lavender bg-lavender-soft font-medium text-lavender-ink'
-                      : 'border-line-faint hover:bg-paper-sunken'
-                  }`}
-                >
-                  <span
-                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-pill border font-mono text-xs ${
-                      selected ? 'border-lavender bg-lavender text-paper' : 'border-line-faint text-ink-faint'
-                    }`}
-                  >
-                    {String.fromCharCode(65 + i)}
-                  </span>
-                  {opt}
-                </button>
-              );
-            })}
-          </div>
-        </Panel>
-
-        {error && (
-          <div className="mt-3">
-            <Alert tone="danger">{error}</Alert>
-          </div>
-        )}
-
-        <div className="mt-5 flex items-center justify-between gap-3">
-          <Button variant="secondary" disabled={current === 0} onClick={() => goTo(current - 1)}>
-            <ArrowLeft className="h-4 w-4" /> Previous
+      <footer className="sticky bottom-0 px-4 pb-[calc(12px+env(safe-area-inset-bottom))] pt-2">
+        <div className="flex items-center gap-1.5 rounded-full border border-line/70 bg-card p-1.5 shadow-lift">
+          <Button variant="ghost" size="lg" iconOnly onClick={() => go(index - 1)} disabled={index === 0} aria-label="Previous question">
+            <ArrowLeft className="h-5 w-5" />
           </Button>
-          <span className="text-xs text-ink-faint">{answeredCount} answered</span>
-          {last ? (
-            <Button onClick={() => submit()} loading={submitting}>
-              <Flag className="h-4 w-4" /> Submit test
+          <Button variant="ghost" size="lg" className="flex-1" onClick={() => setPaletteOpen(true)}>
+            <Grid2x2 className="h-4 w-4" /> {answered}/{questions.length} answered
+          </Button>
+          {index < questions.length - 1 ? (
+            <Button size="lg" iconOnly onClick={() => go(index + 1)} aria-label="Next question">
+              <ArrowRight className="h-5 w-5" />
             </Button>
           ) : (
-            <Button onClick={() => goTo(current + 1)}>
-              Next <ArrowRight className="h-4 w-4" />
+            <Button size="lg" onClick={doSubmit} loading={submit.isPending}>
+              <Check className="h-4 w-4" /> Submit
             </Button>
           )}
         </div>
-      </div>
-    );
-  }
+      </footer>
 
-  // ---- Result -------------------------------------------------------------
-  const attempt = result?.attempt;
-  const review = result?.review ?? [];
-  const questionsById = new Map(payload.questions.map((qq) => [qq.id, qq]));
-
-  return (
-    <div className="mx-auto max-w-3xl">
-      <SectionHeader
-        eyebrow="Mock test result"
-        title="Performance breakdown"
-        description="Readiness blends accuracy with attempt speed. Review each question below."
-      />
-
-      {attempt && (
-        <Panel className="p-5">
-          <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
-            <Stat
-              label="Readiness"
-              value={attempt.readinessScore}
-              tone={attempt.readinessScore >= 70 ? 'eligible' : 'caution'}
-            />
-            <Stat label="Accuracy" value={`${attempt.accuracy}%`} />
-            <Stat label="Score" value={`${attempt.score}/${attempt.maxScore}`} />
-            <Stat label="Avg / question" value={`${attempt.avgSeconds}s`} />
-          </div>
-
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <div>
-              <h4 className="mb-2 text-sm font-semibold">Sections</h4>
-              <ul className="space-y-2">
-                {attempt.sectionStats.map((s) => (
-                  <li key={s.section}>
-                    <div className="mb-1 flex justify-between text-xs text-ink-soft">
-                      <span>{s.section}</span>
-                      <span className="data-value">
-                        {s.correct}/{s.total} · {s.avgSeconds}s
-                      </span>
-                    </div>
-                    <Progress
-                      value={s.total ? (s.correct / s.total) * 100 : 0}
-                      tone={(s.correct / s.total) * 100 >= 70 ? 'eligible' : 'caution'}
-                    />
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h4 className="mb-2 text-sm font-semibold">Weak topics</h4>
-              {attempt.weakTopics.length === 0 ? (
-                <p className="text-sm text-ink-soft">None — strong across all topics.</p>
-              ) : (
-                <ul className="flex flex-wrap gap-1.5">
-                  {attempt.weakTopics.map((t) => (
-                    <li key={t.topic}>
-                      <Badge tone="caution">
-                        {t.topic} · {t.correct}/{t.total}
-                      </Badge>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-5 flex gap-2 border-t border-line-faint pt-4">
-            <Button
-              variant="secondary"
+      <Sheet
+        open={paletteOpen}
+        onClose={() => setPaletteOpen(false)}
+        title="All questions"
+        subtitle={`${answered} answered · ${questions.length - answered} left`}
+        footer={
+          <Button
+            block
+            size="lg"
+            loading={submit.isPending}
+            onClick={() => {
+              if (answered < questions.length && !window.confirm(`${questions.length - answered} unanswered. Submit anyway?`)) return;
+              setPaletteOpen(false);
+              doSubmit();
+            }}
+          >
+            Submit paper
+          </Button>
+        }
+      >
+        <div className="grid grid-cols-5 gap-2 sm:grid-cols-8">
+          {questions.map((x, i) => (
+            <button
+              key={x.id}
               onClick={() => {
-                submittedRef.current = false;
-                setAnswers({});
-                setTimeSpent({});
-                setCurrent(0);
-                setResult(null);
-                setRemaining(payload.mockTest.durationMinutes * 60);
-                setPhase('taking');
-                questionStart.current = Date.now();
+                go(i);
+                setPaletteOpen(false);
               }}
+              className={cn(
+                'press num flex h-12 items-center justify-center rounded-2xl text-[16px] font-semibold',
+                answers[x.id] != null ? 'bg-primary text-primary-fg shadow-key' : 'bg-sunken text-ink-2 shadow-well',
+                i === index && 'ring-2 ring-accent ring-offset-2 ring-offset-card'
+              )}
             >
-              <RotateCcw className="h-4 w-4" /> Retake
-            </Button>
-            <Link to="/exams">
-              <Button variant="ghost">Back to hub</Button>
-            </Link>
-          </div>
-        </Panel>
-      )}
-
-      <div className="mt-6 space-y-3">
-        {review.map((r, i) => {
-          const q = questionsById.get(r.questionId);
-          if (!q) return null;
-          return (
-            <Panel key={r.questionId} flat className="p-4">
-              <div className="flex items-start gap-3">
-                {r.correct ? (
-                  <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-eligible" />
-                ) : (
-                  <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-stop" />
-                )}
-                <div className="min-w-0 flex-1">
-                  <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-ink-faint">
-                    <span className="data-value">Q{i + 1}</span>
-                    <Badge tone="neutral">{r.topic}</Badge>
-                  </div>
-                  <p className="text-sm font-medium text-ink">{q.prompt}</p>
-                  <div className="mt-2 space-y-1 text-sm">
-                    <div className={r.selectedIndex === r.correctIndex ? 'text-eligible' : 'text-stop'}>
-                      Your answer: {r.selectedIndex === null ? 'Not answered' : q.options[r.selectedIndex]}
-                    </div>
-                    {!r.correct && r.correctIndex !== null && (
-                      <div className="text-eligible">Correct: {q.options[r.correctIndex]}</div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </Panel>
-          );
-        })}
-      </div>
+              {i + 1}
+            </button>
+          ))}
+        </div>
+      </Sheet>
     </div>
   );
 }

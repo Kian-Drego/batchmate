@@ -1,213 +1,162 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { GraduationCap, RefreshCw, Timer, TrendingDown, TrendingUp } from 'lucide-react';
-import { api } from '../lib/api';
-import type { Blueprint, Match, MatchResponse, Performance } from '../lib/types';
-import {
-  Alert,
-  Badge,
-  Button,
-  EmptyState,
-  Panel,
-  Progress,
-  SectionHeader,
-  Spinner,
-  Stat,
-} from '../components/ui';
+import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowRight, Clock } from 'lucide-react';
+import { planFromScholarship, renewalOutlook } from '@shared/exam.ts';
+import { useMatches, usePassport, usePerformance, useScholarships } from '../lib/queries';
+import { relativeTime } from '../lib/format';
+import { Button, CountUp, Dial, Empty, ListSkeleton, Meter, PageTitle, SectionHead, Surface, Tag, riseDelay } from '../components/ui';
 
 export default function ExamHubPage() {
-  const navigate = useNavigate();
-  const [matches, setMatches] = useState<Match[]>([]);
-  const [performance, setPerformance] = useState<Performance | null>(null);
-  const [blueprints, setBlueprints] = useState<Record<string, Blueprint>>({});
-  const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const perf = usePerformance();
+  const matches = useMatches();
+  const scholarships = useScholarships();
+  const passport = usePassport();
 
-  useEffect(() => {
-    Promise.all([
-      api.get<MatchResponse>('/passport/matches'),
-      api.get<Performance>('/exams/performance'),
-    ])
-      .then(([m, p]) => {
-        setMatches(m.matches);
-        setPerformance(p);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  const tests = useMemo(() => {
+    const matched = new Set((matches.data?.all ?? []).map((m) => m.scholarshipId));
+    return (scholarships.data ?? [])
+      .filter((s) => s.aptitude_test_required)
+      .sort((a, b) => Number(matched.has(b.id)) - Number(matched.has(a.id)))
+      .map((s) => ({ s, matched: matched.has(s.id) }));
+  }, [matches.data, scholarships.data]);
 
-  const examMatches = useMemo(
-    () => matches.filter((m) => m.scholarship.aptitudeTestRequired || m.scholarship.examPattern),
-    [matches]
-  );
-
-  useEffect(() => {
-    examMatches.forEach((m) => {
-      api
-        .get<Blueprint>(`/exams/${m.scholarshipId}/blueprint`)
-        .then((b) => setBlueprints((prev) => ({ ...prev, [m.scholarshipId]: b })))
-        .catch(() => undefined);
-    });
-  }, [examMatches]);
-
-  const generate = async (scholarshipId: string) => {
-    setGenerating(scholarshipId);
-    setError(null);
-    try {
-      await api.post(`/exams/${scholarshipId}/generate`);
-      navigate(`/exams/${scholarshipId}/take`);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setGenerating(null);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <Spinner className="h-6 w-6" />
-      </div>
-    );
-  }
+  const p = perf.data;
+  const mood = p.totalAttempts === 0 ? 'Take a first mock to see where you stand.' : p.readinessScore >= 70 ? 'You are in good shape. Keep the rhythm.' : 'A few more reps and you’ll be there.';
 
   return (
     <div>
-      <SectionHeader
-        eyebrow="Exam & readiness hub"
-        title="Aptitude preparation"
-        description="Generate topic-wise mock tests for aptitude-based scholarships, then track readiness, weak topics and attempt speed."
-      />
+      <PageTitle kicker="Practice" title="Prep" />
 
-      {error && (
-        <div className="mb-4">
-          <Alert tone="danger">{error}</Alert>
+      <Surface tone="butter" grain className="flex items-center gap-6 rounded-5xl p-6 sm:p-8">
+        <Dial value={p.readinessScore} size={112} stroke={9} color="rgb(var(--butter-ink))" track="rgb(var(--butter-ink) / 0.15)">
+          <div className="text-center">
+            <div className="num text-[34px] font-semibold leading-none">
+              <CountUp value={p.readinessScore} />
+            </div>
+            <div className="mt-1 text-[11px] font-semibold opacity-70">ready</div>
+          </div>
+        </Dial>
+        <div className="min-w-0">
+          <div className="font-display text-[22px] font-semibold leading-tight">Exam readiness</div>
+          <p className="mt-1.5 text-[14.5px] opacity-85">{mood}</p>
+          {p.totalAttempts > 0 && (
+            <p className="mt-2 text-[13px] font-semibold opacity-75">
+              {p.totalAttempts} attempt{p.totalAttempts === 1 ? '' : 's'} · {p.averageAccuracy}% accuracy
+            </p>
+          )}
+        </div>
+      </Surface>
+
+      {p.totalAttempts > 0 && (
+        <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2 [&>*]:min-w-0">
+          <Surface className="p-6">
+            <h2 className="mb-4 text-[19px] font-semibold">Work on these</h2>
+            {p.weakTopics.length === 0 ? (
+              <p className="text-[14.5px] text-ink-2">No weak spots right now.</p>
+            ) : (
+              <ul className="space-y-3.5">
+                {p.weakTopics.map((t) => (
+                  <li key={t.topic}>
+                    <div className="mb-1.5 flex justify-between text-[14.5px]">
+                      <span className="font-medium">{t.topic}</span>
+                      <span className="num text-ink-3">{t.accuracy}%</span>
+                    </div>
+                    <Meter value={t.accuracy} tone="butter" />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Surface>
+          <Surface className="p-6">
+            <h2 className="mb-4 text-[19px] font-semibold">By section</h2>
+            <ul className="space-y-3.5">
+              {p.sections.map((s) => (
+                <li key={s.section}>
+                  <div className="mb-1.5 flex justify-between text-[14.5px]">
+                    <span className="font-medium">{s.section}</span>
+                    <span className="text-ink-3">
+                      <span className="num text-ink">{s.accuracy}%</span> · {s.avgSeconds}s each
+                    </span>
+                  </div>
+                  <Meter value={s.accuracy} tone={s.accuracy >= 70 ? 'sage' : 'ink'} />
+                </li>
+              ))}
+            </ul>
+            {p.strongTopics.length > 0 && (
+              <div className="mt-5 flex flex-wrap gap-1.5">
+                {p.strongTopics.map((t) => (
+                  <Tag key={t.topic} tone="sage">
+                    {t.topic} · {t.accuracy}%
+                  </Tag>
+                ))}
+              </div>
+            )}
+          </Surface>
         </div>
       )}
 
-      {/* Performance summary */}
-      <Panel className="mb-6 p-5">
-        <div className="mb-4 flex items-center gap-2">
-          <TrendingUp className="h-4 w-4 text-lavender" aria-hidden />
-          <h3 className="text-lg font-semibold">Your readiness</h3>
-        </div>
-        {performance && performance.totalAttempts > 0 ? (
-          <>
-            <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
-              <Stat label="Readiness score" value={performance.readinessScore} tone={performance.readinessScore >= 70 ? 'eligible' : 'caution'} />
-              <Stat label="Average accuracy" value={`${performance.averageAccuracy}%`} />
-              <Stat label="Attempts" value={performance.totalAttempts} />
-              <Stat
-                label="Weak topics"
-                value={performance.weakTopics.length}
-                tone={performance.weakTopics.length ? 'caution' : 'eligible'}
-              />
-            </div>
-
-            <div className="mt-5 grid gap-6 lg:grid-cols-2">
-              <div>
-                <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
-                  <TrendingDown className="h-4 w-4 text-caution" /> Needs work
-                </div>
-                {performance.weakTopics.length === 0 ? (
-                  <p className="text-sm text-ink-soft">No weak topics detected yet.</p>
-                ) : (
-                  <ul className="space-y-2">
-                    {performance.weakTopics.map((t) => (
-                      <li key={t.topic}>
-                        <div className="mb-1 flex justify-between text-xs text-ink-soft">
-                          <span>{t.topic}</span>
-                          <span className="data-value">{t.accuracy}%</span>
-                        </div>
-                        <Progress value={t.accuracy} tone="caution" />
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              <div>
-                <div className="mb-2 flex items-center gap-2 text-sm font-semibold">
-                  <TrendingUp className="h-4 w-4 text-eligible" /> Section accuracy
-                </div>
-                <ul className="space-y-2">
-                  {performance.sections.map((s) => (
-                    <li key={s.section}>
-                      <div className="mb-1 flex justify-between text-xs text-ink-soft">
-                        <span>{s.section}</span>
-                        <span className="data-value">
-                          {s.accuracy}% · {s.avgSeconds}s/q
-                        </span>
-                      </div>
-                      <Progress value={s.accuracy} tone={s.accuracy >= 70 ? 'eligible' : 'caution'} />
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </>
-        ) : (
-          <p className="text-sm text-ink-soft">
-            No attempts yet. Generate a mock test below to establish your baseline readiness score.
-          </p>
-        )}
-      </Panel>
-
-      {/* Exam-backed scholarships */}
-      {examMatches.length === 0 ? (
-        <EmptyState
-          icon={GraduationCap}
-          title="No aptitude-based scholarships in your matches"
-          description="When a matched scholarship requires an aptitude test, its mock tests will appear here."
-        />
+      <SectionHead>Mock tests</SectionHead>
+      {scholarships.isLoading ? (
+        <ListSkeleton rows={3} />
+      ) : tests.length === 0 ? (
+        <Empty title="No tests right now" description="When a test-based scholarship joins the catalogue, its mock shows up here." />
       ) : (
-        <div className="grid gap-4">
-          {examMatches.map((m) => {
-            const bp = blueprints[m.scholarshipId];
+        <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+          {tests.map(({ s, matched }, i) => {
+            const plan = planFromScholarship(s);
+            const total = plan.reduce((n, x) => n + x.questions, 0);
+            const renewal = renewalOutlook(s.renewal_criteria?.minimumCgpa, passport.data?.cgpa);
             return (
-              <Panel key={m.scholarshipId} className="p-5">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-serif text-lg font-semibold text-ink">
-                      {m.scholarship.title}
-                    </h3>
-                    <p className="mt-0.5 text-sm text-ink-soft">{m.scholarship.provider}</p>
-
-                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                      {bp?.examPattern?.name && <Badge tone="lavender">{bp.examPattern.name}</Badge>}
-                      {bp && (
-                        <Badge tone="neutral">
-                          <Timer className="h-3 w-3" /> {bp.examPattern?.durationMinutes ?? 30} min
-                        </Badge>
-                      )}
-                      {bp?.renewal && bp.renewal.status !== 'unknown' && (
-                        <Badge tone={bp.renewal.status === 'on-track' ? 'eligible' : 'caution'}>
-                          Renewal {bp.renewal.status === 'on-track' ? 'on track' : 'at risk'}
-                        </Badge>
-                      )}
-                    </div>
-
-                    {bp && (
-                      <div className="mt-3 flex flex-wrap gap-1.5">
-                        {bp.blueprint.map((s) => (
-                          <span
-                            key={s.section}
-                            className="rounded-pill border border-line-faint bg-paper-sunken px-2.5 py-0.5 text-xs text-ink-soft"
-                          >
-                            {s.section} · {s.questions}Q
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <Button onClick={() => generate(m.scholarshipId)} loading={generating === m.scholarshipId}>
-                    <RefreshCw className="h-4 w-4" /> Generate mock test
-                  </Button>
+              <li key={s.id} style={riseDelay(i)} className="surface min-w-0 animate-rise p-5">
+                <div className="flex flex-wrap gap-1.5">
+                  {matched && <Tag tone="sage">You match</Tag>}
+                  {renewal.status !== 'unknown' && <Tag tone={renewal.status === 'on-track' ? 'sky' : 'butter'}>Renewal {renewal.status === 'on-track' ? 'on track' : 'at risk'}</Tag>}
                 </div>
-              </Panel>
+                <div className="mt-3 line-clamp-2 font-display text-[19px] font-semibold leading-snug">{s.title}</div>
+                <div className="mt-0.5 truncate text-[13.5px] text-ink-3">{s.exam_pattern?.name ?? s.provider}</div>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {plan.map((x) => (
+                    <Tag key={x.section}>
+                      {x.section} · {x.questions}
+                    </Tag>
+                  ))}
+                </div>
+                <div className="mt-4 flex items-center justify-between gap-3 border-t border-dashed border-line pt-4">
+                  <span className="inline-flex items-center gap-1.5 text-[13.5px] text-ink-2">
+                    <Clock className="h-4 w-4" /> {total} questions · {s.exam_pattern?.durationMinutes ?? Math.max(15, total * 3)} min
+                  </span>
+                  <Link to={`/exams/${s.id}/take`}>
+                    <Button size="sm">
+                      Start <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                </div>
+              </li>
             );
           })}
-        </div>
+        </ul>
+      )}
+
+      {p.recent.length > 0 && (
+        <>
+          <SectionHead>Recent attempts</SectionHead>
+          <Surface className="divide-y divide-dashed divide-line overflow-hidden">
+            {p.recent.map((a) => (
+              <div key={a.id} className="flex items-center gap-3 px-5 py-4">
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[14.5px] font-semibold">{a.scholarship?.title ?? 'Mock test'}</div>
+                  <div className="text-[12.5px] text-ink-3">{relativeTime(a.completed_at)}</div>
+                </div>
+                <div className="text-right">
+                  <div className="num text-[18px] font-semibold">{a.accuracy}%</div>
+                  <div className="text-[12px] text-ink-3">
+                    {a.score}/{a.max_score}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </Surface>
+        </>
       )}
     </div>
   );

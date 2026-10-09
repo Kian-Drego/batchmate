@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'client/**'
+      - 'supabase/functions/_shared/**'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/deploy-pages.yml'
@@ -21,12 +22,6 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
-# Server-only tooling (Playwright / in-memory Mongo) is irrelevant to the
-# client build — skip their heavy post-install downloads.
-env:
-  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
-  MONGOMS_DISABLE_POSTINSTALL: '1'
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -42,11 +37,12 @@ jobs:
         run: npm ci
 
       - name: Build client
-        # Set the repository variable VITE_API_URL to the deployed API origin
-        # (Settings → Secrets and variables → Actions → Variables), e.g.
-        # https://batchmate-api.onrender.com
+        # Repository variables (Settings → Secrets and variables → Actions →
+        # Variables). The publishable key is browser-safe; data is protected by RLS.
         env:
-          VITE_API_URL: ${{ vars.VITE_API_URL }}
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+          VITE_GOOGLE_AUTH: ${{ vars.VITE_GOOGLE_AUTH }}
         run: npm --workspace client run build
 
       - name: Add SPA fallback for client-side routes

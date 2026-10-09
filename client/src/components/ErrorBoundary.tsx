@@ -1,15 +1,10 @@
-import { Component } from 'react';
-import type { ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { Component, type ErrorInfo, type ReactNode } from 'react';
 
-type Props = { children: ReactNode };
-type State = { error: Error | null };
+interface State {
+  error: Error | null;
+}
 
-/**
- * Catches render errors so a single broken view degrades to a readable message
- * instead of a blank white page.
- */
-export default class ErrorBoundary extends Component<Props, State> {
+export default class ErrorBoundary extends Component<{ children: ReactNode }, State> {
   state: State = { error: null };
 
   static getDerivedStateFromError(error: Error): State {
@@ -17,28 +12,24 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('Unhandled UI error', error, info);
+    console.error('Unhandled UI error', error, info.componentStack);
   }
 
   render() {
     if (!this.state.error) return this.props.children;
-
+    const chunkError = /Loading chunk|dynamically imported module|Importing a module script failed/i.test(this.state.error.message);
     return (
-      <div className="flex min-h-screen items-center justify-center px-5">
-        <div className="w-full max-w-md rounded-card border border-line bg-paper-raised p-6 text-center">
-          <AlertTriangle className="mx-auto h-6 w-6 text-caution" aria-hidden />
-          <h1 className="mt-3 text-lg font-semibold text-ink">Something went wrong</h1>
-          <p className="mt-1 text-sm text-ink-soft">
-            This section failed to render. Reloading usually clears it — your saved data is
-            unaffected.
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 inline-flex items-center gap-2 rounded-card border border-line bg-inverse px-4 py-2.5 text-sm font-semibold text-inverse-fg hover:opacity-90"
-          >
-            Reload page
-          </button>
-        </div>
+      <div className="flex min-h-dvh flex-col items-center justify-center px-6 text-center">
+        <h1 className="font-display text-[28px] font-semibold">{chunkError ? 'A fresh version is ready' : 'Something slipped'}</h1>
+        <p className="mt-2 max-w-sm text-[15px] text-ink-2">
+          {chunkError ? 'Reload to get the latest BatchMate.' : 'Reloading usually fixes it. If it keeps happening, let us know.'}
+        </p>
+        <button
+          className="press mt-6 h-12 rounded-full bg-primary px-6 text-[14.5px] font-semibold text-primary-fg shadow-key"
+          onClick={() => window.location.reload()}
+        >
+          Reload
+        </button>
       </div>
     );
   }

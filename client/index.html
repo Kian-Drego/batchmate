@@ -2,21 +2,31 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#f2eee7" />
+    <meta name="color-scheme" content="light dark" />
     <meta
       name="description"
-      content="BatchMate: match eligible scholarships, track guided applications and prepare for aptitude tests."
+      content="BatchMate: find scholarships you actually qualify for, track applications and prep for aptitude tests."
     />
-    <title>BatchMate</title>
+    <meta property="og:title" content="BatchMate — scholarships that fit you" />
+    <meta property="og:description" content="Find scholarships you actually qualify for. Free, private, no Aadhaar required." />
+    <meta property="og:type" content="website" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <title>BatchMate — scholarships that fit you</title>
     <script>
-      // Apply the stored theme before first paint so there is no light flash.
+      // Resolve theme before first paint: stored choice, else system preference.
       try {
-        if (localStorage.getItem('sp-theme') === 'dark') {
+        var stored = localStorage.getItem('bm-theme');
+        var dark = stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (dark) {
           document.documentElement.classList.add('dark');
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#161513');
         }
-      } catch (e) {
-        /* storage unavailable */
-      }
+      } catch (e) {}
     </script>
   </head>
   <body>

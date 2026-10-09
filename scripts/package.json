@@ -1,0 +1,25 @@
+{
+  "name": "scripts",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Operational scripts (seed, admin promotion, cron setup). Run from the repo root.",
+  "scripts": {
+    "seed": "tsx seed.ts",
+    "seed:demo": "tsx seed.ts --demo",
+    "make-admin": "tsx make-admin.ts",
+    "setup-cron": "tsx setup-cron.ts",
+    "smoke": "tsx smoke.ts",
+    "create-admin": "tsx create-admin.ts"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.117.3",
+    "dotenv": "^16.6.1",
+    "pg": "^8.23.1"
+  }
+}

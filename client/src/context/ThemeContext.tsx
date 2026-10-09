@@ -1,50 +1,61 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import type { ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 
-export type Theme = 'light' | 'dark';
+type Theme = 'light' | 'dark';
 
-const STORAGE_KEY = 'sp-theme';
+const ThemeContext = createContext<{ theme: Theme; toggle: () => void } | null>(null);
 
-type ThemeContextValue = {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
-  toggle: () => void;
-};
+const META = { light: '#f2eee7', dark: '#161513' };
 
-const ThemeContext = createContext<ThemeContextValue | null>(null);
-
-/** The no-flash script in index.html has already applied the stored theme. */
-function readInitialTheme(): Theme {
-  if (typeof document === 'undefined') return 'light';
+function current(): Theme {
   return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
 }
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(readInitialTheme);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-    try {
-      localStorage.setItem(STORAGE_KEY, theme);
-    } catch {
-      /* storage may be unavailable (private mode); the class still applies */
-    }
-  }, [theme]);
-
-  const value = useMemo<ThemeContextValue>(
-    () => ({
-      theme,
-      setTheme,
-      toggle: () => setTheme((current) => (current === 'dark' ? 'light' : 'dark')),
-    }),
-    [theme],
-  );
-
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+function apply(theme: Theme) {
+  document.documentElement.classList.toggle('dark', theme === 'dark');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', META[theme]);
 }
 
-export function useTheme(): ThemeContextValue {
+function stored(): Theme | null {
+  try {
+    const v = localStorage.getItem('bm-theme');
+    return v === 'light' || v === 'dark' ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const [theme, setTheme] = useState<Theme>(current);
+
+  // Follow the OS setting until the user makes an explicit choice.
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = () => {
+      if (stored()) return;
+      const next: Theme = mq.matches ? 'dark' : 'light';
+      apply(next);
+      setTheme(next);
+    };
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
+  const toggle = useCallback(() => {
+    const next: Theme = current() === 'dark' ? 'light' : 'dark';
+    apply(next);
+    try {
+      localStorage.setItem('bm-theme', next);
+    } catch {
+      /* storage unavailable */
+    }
+    setTheme(next);
+  }, []);
+
+  return <ThemeContext.Provider value={{ theme, toggle }}>{children}</ThemeContext.Provider>;
+}
+
+export function useTheme() {
   const ctx = useContext(ThemeContext);
-  if (!ctx) throw new Error('useTheme must be used inside a ThemeProvider');
+  if (!ctx) throw new Error('useTheme must be used within ThemeProvider');
   return ctx;
 }

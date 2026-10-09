@@ -1,76 +1,125 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { api, setToken, getToken } from '../lib/api';
-import type { User } from '../lib/types';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import type { Session, User } from '@supabase/supabase-js';
+import { useQueryClient } from '@tanstack/react-query';
+import type { ProfileRow } from '@shared/types.ts';
+import { supabase, toError } from '../lib/supabase';
 
 interface AuthContextValue {
+  session: Session | null;
   user: User | null;
+  profile: ProfileRow | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
-  loginWithToken: (token: string) => Promise<void>;
-  logout: () => void;
-  refresh: () => Promise<void>;
+  /** True while the user arrived from a password-recovery link. */
+  recovering: boolean;
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (name: string, email: string, password: string) => Promise<{ needsConfirmation: boolean }>;
+  signInWithGoogle: () => Promise<void>;
+  sendPasswordReset: (email: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+const redirect = (path: string) => `${window.location.origin}${path}`;
 
-  const refresh = useCallback(async () => {
-    if (!getToken()) {
-      setUser(null);
-      setLoading(false);
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const qc = useQueryClient();
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<ProfileRow | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [recovering, setRecovering] = useState(false);
+
+  const loadProfile = useCallback(async (uid: string | undefined) => {
+    if (!uid) {
+      setProfile(null);
       return;
     }
-    try {
-      const data = await api.get<{ user: User }>('/auth/me');
-      setUser(data.user);
-    } catch {
-      setToken(null);
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
+    const { data } = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle();
+    setProfile((data as ProfileRow) ?? null);
   }, []);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
-
-  const login = useCallback(async (email: string, password: string) => {
-    const data = await api.post<{ token: string; user: User }>('/auth/login', { email, password });
-    setToken(data.token);
-    setUser(data.user);
-  }, []);
-
-  const register = useCallback(async (name: string, email: string, password: string) => {
-    const data = await api.post<{ token: string; user: User }>('/auth/register', {
-      name,
-      email,
-      password,
+    let active = true;
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (!active) return;
+      setSession(data.session);
+      await loadProfile(data.session?.user.id);
+      if (active) setLoading(false);
     });
-    setToken(data.token);
-    setUser(data.user);
+    const { data: sub } = supabase.auth.onAuthStateChange((event, next) => {
+      setSession(next);
+      if (event === 'PASSWORD_RECOVERY') setRecovering(true);
+      if (event === 'SIGNED_OUT') {
+        setProfile(null);
+        qc.clear();
+      }
+      if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        // Defer: calling supabase inside the callback can deadlock the auth lock.
+        setTimeout(() => void loadProfile(next?.user.id), 0);
+      }
+    });
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
+  }, [loadProfile, qc]);
+
+  const signIn = useCallback(async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    if (error) throw await toError(error);
   }, []);
 
-  const loginWithToken = useCallback(
-    async (token: string) => {
-      setToken(token);
-      await refresh();
-    },
-    [refresh]
-  );
-
-  const logout = useCallback(() => {
-    setToken(null);
-    setUser(null);
+  const signUp = useCallback(async (name: string, email: string, password: string) => {
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: { data: { name: name.trim() }, emailRedirectTo: redirect('/auth/callback') },
+    });
+    if (error) throw await toError(error);
+    return { needsConfirmation: !data.session };
   }, []);
 
-  const value = useMemo(
-    () => ({ user, loading, login, register, loginWithToken, logout, refresh }),
-    [user, loading, login, register, loginWithToken, logout, refresh]
+  const signInWithGoogle = useCallback(async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: redirect('/auth/callback') },
+    });
+    if (error) throw await toError(error);
+  }, []);
+
+  const sendPasswordReset = useCallback(async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: redirect('/auth/reset') });
+    if (error) throw await toError(error);
+  }, []);
+
+  const updatePassword = useCallback(async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw await toError(error);
+    setRecovering(false);
+  }, []);
+
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
+  }, []);
+
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      session,
+      user: session?.user ?? null,
+      profile,
+      loading,
+      recovering,
+      signIn,
+      signUp,
+      signInWithGoogle,
+      sendPasswordReset,
+      updatePassword,
+      signOut,
+      refreshProfile: () => loadProfile(session?.user.id),
+    }),
+    [session, profile, loading, recovering, signIn, signUp, signInWithGoogle, sendPasswordReset, updatePassword, signOut, loadProfile]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
