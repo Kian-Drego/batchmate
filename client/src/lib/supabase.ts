@@ -9,7 +9,9 @@ if (!url || !key) {
 }
 
 export const supabase = createClient(url, key, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce' },
+  // Implicit flow: emailed links (verification, password reset) carry the session in the URL
+  // hash, so they work even when opened on a different device than the one that asked.
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'implicit' },
 });
 
 /** Normalise Supabase/PostgREST/Function errors into a readable Error. */

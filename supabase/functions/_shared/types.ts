@@ -73,6 +73,7 @@ export interface ProfileRow {
   name: string;
   avatar_url: string | null;
   role: 'student' | 'admin';
+  email_verified_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -228,6 +229,7 @@ export interface AdminAuditRow {
 export interface AdminStats {
   students: number;
   newStudents7d: number;
+  unverifiedStudents: number;
   pendingDocuments: number;
   awaitingDecision: number;
   activeApplications: number;

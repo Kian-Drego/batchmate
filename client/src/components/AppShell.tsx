@@ -24,6 +24,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { Avatar, IconButton, Spinner, cn } from './ui';
+import { VerifyNudge } from './VerifyEmail';
 
 interface NavItem {
   to: string;
@@ -193,6 +194,7 @@ export default function AppShell({ variant }: { variant: 'student' | 'admin' }) 
         </header>
 
         <main className="mx-auto w-full max-w-[1080px] px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-3 sm:px-6 lg:px-10 lg:pb-14 lg:pt-12">
+          {!admin && <VerifyNudge />}
           {/* Enter-only page transition: no exit delay between tabs. */}
           <m.div key={location.pathname} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}>
             <Suspense fallback={<PageFallback />}>

@@ -112,6 +112,19 @@ Mobile is primary: floating dock (hidden on pushed screens like /scholarships/:i
 sheets, ≥44px targets, safe-area insets. Stay fast on low-end devices: animate only
 transform/opacity, no backdrop blur, honour `prefers-reduced-motion`, route-level splitting.
 
+## Email verification (beta, soft)
+
+Supabase's mandatory confirmation is OFF (`enable_confirmations = false`) because the free tier
+sends ~2 auth emails/hour and custom email templates need custom SMTP. Users get in immediately;
+`profiles.email_verified_at` tracks verification. `client/src/lib/verification.ts` sends Supabase's
+stock magic-link email ("Your Magic Link" → "Log In"); opening it yields a session whose JWT `amr`
+proves inbox access, and AuthContext calls `confirm_email_ownership()` (rejects password sessions).
+Rate-limited sends open a countdown window (Supabase's "after N seconds" or 15 min), stored per user
+in localStorage; a fresh refusal opens a new window. UI: loud `VerifyCard` on Home only while a send
+is possible; calm `VerifyNudge` strip across the student app otherwise. Auth uses the implicit flow
+so emailed links work on any device. Don't send test emails to fake addresses (bounces hurt the
+project's sender reputation). Once custom SMTP exists, switch to an OTP-code template.
+
 ## Admin console (`/admin/*`, role = admin)
 
 Overview, Review (document verification queue — rejections need a note the student sees),
@@ -141,7 +154,8 @@ Admin login: `npm --workspace scripts run create-admin` (credentials land in `.e
   `enable_confirmations = false`)
 - [x] Hosting moved to Vercel (env vars set there); GitHub Pages workflow + CNAME removed
 - [ ] batchmate.duckdns.org added in Vercel and DuckDNS A record → 76.76.21.21
-- [ ] Custom SMTP for auth emails (built-in sender is rate-limited)
+- [x] Soft email verification with rate-limit windows (`20261010000003`)
+- [ ] Custom SMTP for auth emails (built-in sender is rate-limited) — then consider OTP codes
 
 ## Scripts (`scripts/` workspace, reads root `.env`)
 

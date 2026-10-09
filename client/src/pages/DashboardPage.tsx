@@ -5,6 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import { useApplications, useMatches, usePerformance } from '../lib/queries';
 import { daysUntil, firstName, inr } from '../lib/format';
 import { ScholarshipTile } from '../components/ScholarshipCard';
+import { VerifyCard } from '../components/VerifyEmail';
+import { useEmailVerification } from '../lib/verification';
 import { Button, CountUp, Dial, Empty, Meter, SectionHead, Skeleton, StatusTag, Surface, cn } from '../components/ui';
 
 function greeting(): string {
@@ -22,6 +24,8 @@ export default function DashboardPage() {
   const matches = useMatches();
   const applications = useApplications();
   const perf = usePerformance();
+  const verification = useEmailVerification();
+  const pushVerify = ['ready', 'sending', 'sent'].includes(verification.state.kind);
 
   const data = matches.data;
   const eligible = useMemo(() => (data ? [...data.highlyEligible, ...data.possiblyEligible] : []), [data]);
@@ -48,6 +52,9 @@ export default function DashboardPage() {
           <span className="text-ink-2">{firstName(profile?.name).toLowerCase()}.</span>
         </h1>
       </div>
+
+      {/* Verification takes the top slot only while we can actually send. */}
+      {pushVerify && <VerifyCard className="mb-3 animate-rise" />}
 
       {/* Hero */}
       {matches.isLoading ? (

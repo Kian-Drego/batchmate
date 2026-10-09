@@ -2,7 +2,21 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import type { Session, User } from '@supabase/supabase-js';
 import { useQueryClient } from '@tanstack/react-query';
 import type { ProfileRow } from '@shared/types.ts';
+import { toast } from 'sonner';
 import { supabase, toError } from '../lib/supabase';
+
+/** Auth methods that prove the user read their inbox. */
+const EMAIL_PROOF = new Set(['otp', 'magiclink', 'recovery', 'email/signup', 'email_change']);
+
+function sessionProvesEmail(session: Session | null): boolean {
+  if (!session) return false;
+  try {
+    const payload = JSON.parse(atob(session.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+    return (payload.amr ?? []).some((m: { method?: string }) => EMAIL_PROOF.has(m.method ?? ''));
+  } catch {
+    return false;
+  }
+}
 
 interface AuthContextValue {
   session: Session | null;
@@ -37,7 +51,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     const { data } = await supabase.from('profiles').select('*').eq('id', uid).maybeSingle();
-    setProfile((data as ProfileRow) ?? null);
+    let row = (data as ProfileRow) ?? null;
+    // Arrived via the emailed link: record that the address is verified.
+    if (row && !row.email_verified_at) {
+      const { data: s } = await supabase.auth.getSession();
+      if (sessionProvesEmail(s.session)) {
+        const { data: stamp, error } = await supabase.rpc('confirm_email_ownership');
+        if (!error && stamp) {
+          row = { ...row, email_verified_at: stamp as string };
+          toast.success('Email verified — you’re all set.');
+        }
+      }
+    }
+    setProfile(row);
   }, []);
 
   useEffect(() => {

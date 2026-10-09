@@ -170,7 +170,7 @@ export default function PassportPage() {
 
       {welcome && completeness < 100 && (
         <Notice tone="peach" className="mt-3">
-          <b className="font-semibold">Welcome to BatchMate.</b> Start with the basics below — every field unlocks sharper matches.
+          <b className="font-semibold">Welcome to BatchMate.</b> Start with the basics below — every field unlocks sharper matches. We’ve also emailed you a verification link: open “Your Magic Link” and tap “Log In”.
         </Notice>
       )}
 

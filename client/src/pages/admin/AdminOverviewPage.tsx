@@ -39,7 +39,7 @@ export default function AdminOverviewPage() {
         <Skeleton className="h-48 rounded-4xl" />
       ) : (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Stat label="Students" value={s?.students ?? 0} hint={`+${s?.newStudents7d ?? 0} this week`} />
+          <Stat label="Students" value={s?.students ?? 0} hint={`+${s?.newStudents7d ?? 0} this week · ${s?.unverifiedStudents ?? 0} unverified`} />
           <Stat label="Active applications" value={s?.activeApplications ?? 0} />
           <Stat label="Awarded" value={s?.awarded ?? 0} tone="sage" />
           <Stat label="Live scholarships" value={s?.activeScholarships ?? 0} hint={`${s?.closingSoon ?? 0} closing in 14 days`} />

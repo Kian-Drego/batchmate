@@ -179,7 +179,10 @@ export default function AdminStudentsPage() {
               >
                 <Avatar name={s.name || s.email} src={s.avatar_url} size={42} />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[15px] font-semibold">{s.name || 'Unnamed'}</div>
+                  <div className="flex items-center gap-2">
+                    <span className="truncate text-[15px] font-semibold">{s.name || 'Unnamed'}</span>
+                    {!s.email_verified_at && <Tag tone="butter" className="h-6 shrink-0 px-2 text-[11.5px]">Unverified</Tag>}
+                  </div>
                   <div className="truncate text-[12.5px] text-ink-3">
                     {s.email}
                     {s.passport?.state ? ` · ${s.passport.state}` : ''}
@@ -205,7 +208,7 @@ export default function AdminStudentsPage() {
         onClose={() => setSheetOpen(false)}
         wide
         title={current?.name || current?.email || ''}
-        subtitle={current ? `${current.email} · joined ${shortDate(current.created_at)}` : undefined}
+        subtitle={current ? `${current.email} · ${current.email_verified_at ? 'verified' : 'email not verified'} · joined ${shortDate(current.created_at)}` : undefined}
         footer={
           current &&
           current.id !== user?.id && (
