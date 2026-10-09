@@ -1,148 +1,71 @@
-import { useEffect, useState } from 'react';
-import { Play, ShieldCheck } from 'lucide-react';
-import { api } from '../lib/api';
-import { Alert, Badge, Button, EmptyState, Panel, SectionHeader, Spinner } from '../components/ui';
-import { shortDate } from '../lib/format';
+import { toast } from 'sonner';
+import { DatabaseZap, RefreshCw } from 'lucide-react';
+import { useRunScrape, useScholarships, useScrapeRuns } from '../lib/queries';
+import { relativeTime } from '../lib/format';
+import { Alert, Badge, Button, EmptyState, ListSkeleton, PageHeader, Stat } from '../components/ui';
 
-interface ScrapeRun {
-  _id: string;
-  sourceName: string;
-  sourceUrl: string;
-  startedAt: string;
-  finishedAt?: string | null;
-  status: 'success' | 'partial' | 'failed' | 'skipped';
-  recordsFound: number;
-  recordsUpserted: number;
-  durationMs: number;
-  error?: string;
-  mode: 'live' | 'snapshot';
-}
+const STATUS_TONE = { success: 'mint', partial: 'warn', failed: 'danger', skipped: 'neutral' } as const;
 
 export default function AdminPage() {
-  const [runs, setRuns] = useState<ScrapeRun[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [scraping, setScraping] = useState(false);
-  const [report, setReport] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const runs = useScrapeRuns(true);
+  const scholarships = useScholarships();
+  const scrape = useRunScrape();
 
-  const load = async () => {
-    const data = await api.get<{ runs: ScrapeRun[] }>('/scholarships/admin/scrape-runs');
-    setRuns(data.runs);
-  };
-
-  useEffect(() => {
-    load().finally(() => setLoading(false));
-  }, []);
-
-  const triggerScrape = async () => {
-    setScraping(true);
-    setError(null);
-    setReport(null);
-    try {
-      const data = await api.post<{ mode: string; totalUpserted: number }>(
-        '/scholarships/admin/scrape'
-      );
-      setReport(`Crawl (${data.mode}) upserted ${data.totalUpserted} records.`);
-      await load();
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setScraping(false);
-    }
-  };
-
-  const statusTone = (status: ScrapeRun['status']) =>
-    status === 'success' ? 'eligible' : status === 'failed' ? 'stop' : 'caution';
+  const lastRun = runs.data?.[0];
 
   return (
     <div>
-      <SectionHeader
-        eyebrow="Source audit trail"
-        title="Scraper activity"
-        description="Every source visited by the nightly crawl is logged with record counts, duration and errors. Default schedule: 00:00 IST (18:30 UTC)."
+      <PageHeader
+        eyebrow="Admin"
+        title="Source audit"
+        description="Every crawl writes an audit row per source. The nightly job runs at 00:00 IST."
         action={
-          <Button onClick={triggerScrape} loading={scraping}>
-            <Play className="h-4 w-4" /> Run crawl now
+          <Button
+            onClick={() =>
+              scrape.mutate(undefined, {
+                onSuccess: (r) => toast.success(`${r.mode} crawl: ${r.totalUpserted} records upserted`),
+                onError: (e) => toast.error(e.message),
+              })
+            }
+            loading={scrape.isPending}
+          >
+            <RefreshCw className="h-4 w-4" /> <span className="hidden sm:inline">Run crawl</span>
           </Button>
         }
       />
 
-      {report && (
-        <div className="mb-4">
-          <Alert tone="success">{report}</Alert>
-        </div>
-      )}
-      {error && (
-        <div className="mb-4">
-          <Alert tone="danger">{error}</Alert>
-        </div>
-      )}
+      <div className="mb-4 grid grid-cols-2 gap-3">
+        <Stat label="Active scholarships" value={scholarships.data?.length ?? '—'} tone="accent" />
+        <Stat label="Last crawl" value={lastRun ? relativeTime(lastRun.started_at) : '—'} hint={lastRun?.mode} />
+      </div>
 
-      {loading ? (
-        <div className="flex h-48 items-center justify-center">
-          <Spinner className="h-6 w-6" />
-        </div>
-      ) : runs.length === 0 ? (
-        <EmptyState
-          icon={ShieldCheck}
-          title="No crawl runs recorded"
-          description="Trigger a crawl to populate the audit trail."
-        />
+      {runs.error && <Alert>{(runs.error as Error).message}</Alert>}
+      {runs.isLoading ? (
+        <ListSkeleton rows={4} />
+      ) : !runs.data?.length ? (
+        <EmptyState icon={DatabaseZap} title="No crawl runs yet" description="Run a crawl to populate the audit trail." />
       ) : (
-        <Panel className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-sm">
-            <thead>
-              <tr className="border-b border-line text-left">
-                <th className="px-4 py-3 font-mono text-xs uppercase tracking-wide text-ink-faint">
-                  Source
-                </th>
-                <th className="px-4 py-3 font-mono text-xs uppercase tracking-wide text-ink-faint">
-                  Status
-                </th>
-                <th className="px-4 py-3 font-mono text-xs uppercase tracking-wide text-ink-faint">
-                  Mode
-                </th>
-                <th className="px-4 py-3 text-right font-mono text-xs uppercase tracking-wide text-ink-faint">
-                  Found
-                </th>
-                <th className="px-4 py-3 text-right font-mono text-xs uppercase tracking-wide text-ink-faint">
-                  Upserted
-                </th>
-                <th className="px-4 py-3 text-right font-mono text-xs uppercase tracking-wide text-ink-faint">
-                  Duration
-                </th>
-                <th className="px-4 py-3 font-mono text-xs uppercase tracking-wide text-ink-faint">
-                  Started
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {runs.map((run) => (
-                <tr key={run._id} className="border-b border-line-faint last:border-0">
-                  <td className="px-4 py-3">
-                    <div className="font-medium text-ink">{run.sourceName}</div>
-                    <div className="max-w-[260px] truncate text-xs text-ink-faint">
-                      {run.sourceUrl}
-                    </div>
-                    {run.error && <div className="mt-0.5 text-xs text-stop">{run.error}</div>}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge tone={statusTone(run.status) as never}>{run.status}</Badge>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge tone={run.mode === 'live' ? 'lavender' : 'neutral'}>{run.mode}</Badge>
-                  </td>
-                  <td className="px-4 py-3 text-right data-value">{run.recordsFound}</td>
-                  <td className="px-4 py-3 text-right data-value">{run.recordsUpserted}</td>
-                  <td className="px-4 py-3 text-right data-value">
-                    {Math.round(run.durationMs / 100) / 10}s
-                  </td>
-                  <td className="px-4 py-3 text-ink-soft">{shortDate(run.startedAt)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Panel>
+        <ul className="card divide-y divide-line">
+          {runs.data.map((r) => (
+            <li key={r.id} className="px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold">{r.source_name}</div>
+                  <div className="truncate text-[12px] text-fg-faint">
+                    {relativeTime(r.started_at)} · {r.mode} · {r.duration_ms} ms
+                  </div>
+                </div>
+                <div className="shrink-0 text-right">
+                  <Badge tone={STATUS_TONE[r.status]}>{r.status}</Badge>
+                  <div className="mt-1 font-mono text-[12px] tabular-nums text-fg-muted">
+                    {r.records_upserted}/{r.records_found} rec
+                  </div>
+                </div>
+              </div>
+              {r.error && <p className="mt-1.5 text-[12px] text-warn">{r.error}</p>}
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

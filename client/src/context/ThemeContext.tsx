@@ -1,50 +1,33 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import type { ReactNode } from 'react';
+import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
 
-export type Theme = 'light' | 'dark';
+type Theme = 'dark' | 'light';
 
-const STORAGE_KEY = 'sp-theme';
+const ThemeContext = createContext<{ theme: Theme; toggle: () => void } | null>(null);
 
-type ThemeContextValue = {
-  theme: Theme;
-  setTheme: (theme: Theme) => void;
-  toggle: () => void;
-};
-
-const ThemeContext = createContext<ThemeContextValue | null>(null);
-
-/** The no-flash script in index.html has already applied the stored theme. */
-function readInitialTheme(): Theme {
-  if (typeof document === 'undefined') return 'light';
-  return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+function readTheme(): Theme {
+  return document.documentElement.classList.contains('light') ? 'light' : 'dark';
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(readInitialTheme);
+  const [theme, setTheme] = useState<Theme>(readTheme);
 
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
+  const toggle = useCallback(() => {
+    const next: Theme = readTheme() === 'dark' ? 'light' : 'dark';
+    document.documentElement.classList.toggle('light', next === 'light');
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', next === 'light' ? '#f6f6fb' : '#09090e');
     try {
-      localStorage.setItem(STORAGE_KEY, theme);
+      localStorage.setItem('bm-theme', next);
     } catch {
-      /* storage may be unavailable (private mode); the class still applies */
+      /* storage unavailable */
     }
-  }, [theme]);
+    setTheme(next);
+  }, []);
 
-  const value = useMemo<ThemeContextValue>(
-    () => ({
-      theme,
-      setTheme,
-      toggle: () => setTheme((current) => (current === 'dark' ? 'light' : 'dark')),
-    }),
-    [theme],
-  );
-
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  return <ThemeContext.Provider value={{ theme, toggle }}>{children}</ThemeContext.Provider>;
 }
 
-export function useTheme(): ThemeContextValue {
+export function useTheme() {
   const ctx = useContext(ThemeContext);
-  if (!ctx) throw new Error('useTheme must be used inside a ThemeProvider');
+  if (!ctx) throw new Error('useTheme must be used within ThemeProvider');
   return ctx;
 }

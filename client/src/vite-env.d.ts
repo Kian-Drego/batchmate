@@ -1,12 +1,12 @@
 /// <reference types="vite/client" />
+/// <reference types="vite-plugin-pwa/client" />
 
 interface ImportMetaEnv {
-  /**
-   * Absolute URL of the API origin used for production builds (no trailing
-   * slash), e.g. https://batchmate-api.onrender.com. Leave unset to call the
-   * API on the same origin (dev proxy / single-host deployments).
-   */
-  readonly VITE_API_URL?: string;
+  readonly VITE_SUPABASE_URL: string;
+  /** Publishable (anon) key — safe in the browser; data is protected by RLS. */
+  readonly VITE_SUPABASE_PUBLISHABLE_KEY: string;
+  /** "true" to show the Google sign-in button (provider must be enabled in Supabase). */
+  readonly VITE_GOOGLE_AUTH?: string;
 }
 
 interface ImportMeta {

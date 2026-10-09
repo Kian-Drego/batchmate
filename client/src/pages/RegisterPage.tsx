@@ -1,105 +1,144 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { GraduationCap } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { MailCheck } from 'lucide-react';
+import AuthLayout, { GoogleButton } from '../components/AuthLayout';
+import { Alert, Button, Field, Input, cn } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
-import { Alert, Button, Field, TextInput } from '../components/ui';
-import ThemeToggle from '../components/ThemeToggle';
+
+function strength(pw: string): number {
+  let s = 0;
+  if (pw.length >= 8) s += 1;
+  if (pw.length >= 12) s += 1;
+  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) s += 1;
+  if (/\d/.test(pw) || /[^\w]/.test(pw)) s += 1;
+  return s;
+}
+
+const STRENGTH = ['Too short', 'Weak', 'Okay', 'Strong', 'Very strong'];
+const STRENGTH_BAR = ['bg-danger', 'bg-danger', 'bg-warn', 'bg-mint', 'bg-mint'];
 
 export default function RegisterPage() {
-  const { register } = useAuth();
+  const { user, signUp, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [sentTo, setSentTo] = useState<string | null>(null);
 
-  const submit = async (e: React.FormEvent) => {
+  if (user) return <Navigate to="/dashboard" replace />;
+
+  const score = strength(password);
+
+  const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (password.length < 8) {
+      setError('Use at least 8 characters.');
+      return;
+    }
+    setBusy(true);
     setError(null);
-    setLoading(true);
     try {
-      await register(name, email, password);
-      navigate('/passport', { replace: true });
+      const { needsConfirmation } = await signUp(name, email, password);
+      if (needsConfirmation) setSentTo(email);
+      else navigate('/passport?welcome=1', { replace: true });
     } catch (err) {
       setError((err as Error).message);
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   };
 
-  return (
-    <div className="relative flex min-h-screen items-center justify-center px-5 py-12">
-      <ThemeToggle className="absolute right-5 top-5 z-10" />
-      <div className="w-full max-w-sm">
-        <div className="mb-6 flex items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-card border border-line bg-inverse text-inverse-fg">
-            <GraduationCap className="h-5 w-5" aria-hidden />
+  if (sentTo) {
+    return (
+      <AuthLayout
+        title="Check your inbox"
+        subtitle={
+          <>
+            We sent a confirmation link to <b className="text-fg">{sentTo}</b>.
+          </>
+        }
+      >
+        <div className="flex flex-col items-center py-4 text-center">
+          <span className="flex h-16 w-16 animate-pop-in items-center justify-center rounded-2xl bg-mint-soft text-mint shadow-glow-mint">
+            <MailCheck className="h-7 w-7" />
           </span>
-          <span className="font-serif text-lg font-semibold">BatchMate</span>
-        </div>
-
-        <h2 className="text-2xl font-semibold text-ink">Create your passport</h2>
-        <p className="mt-1 text-sm text-ink-soft">
-          Two minutes now saves repeated form-filling later.
-        </p>
-
-        {error && (
-          <div className="mt-4">
-            <Alert tone="danger">{error}</Alert>
-          </div>
-        )}
-
-        <form onSubmit={submit} className="mt-6 space-y-4">
-          <Field label="Full name" htmlFor="name">
-            <TextInput
-              id="name"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="As printed on your marksheet"
-            />
-          </Field>
-          <Field label="Email" htmlFor="email">
-            <TextInput
-              id="email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-            />
-          </Field>
-          <Field label="Password" htmlFor="password" hint="Minimum 8 characters.">
-            <TextInput
-              id="password"
-              type="password"
-              autoComplete="new-password"
-              required
-              minLength={8}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-            />
-          </Field>
-          <Button type="submit" loading={loading} className="w-full">
-            Create account
-          </Button>
-        </form>
-
-        <p className="mt-4 text-xs text-ink-faint">
-          We never ask for Aadhaar, PAN or any government identifier. Only academic and demographic
-          metadata needed for eligibility checks.
-        </p>
-
-        <p className="mt-6 text-sm text-ink-soft">
-          Already registered?{' '}
-          <Link to="/login" className="font-semibold text-lavender-ink underline">
-            Sign in
+          <p className="mt-5 text-sm text-fg-muted">
+            Tap the link on this device to finish setting up your passport. Didn&apos;t get it? Check spam.
+          </p>
+          <Link to="/login" className="mt-6 text-sm font-semibold text-accent">
+            Back to sign in
           </Link>
-        </p>
-      </div>
-    </div>
+        </div>
+      </AuthLayout>
+    );
+  }
+
+  return (
+    <AuthLayout title="Create your passport" subtitle="Takes about 2 minutes. Free forever.">
+      <GoogleButton onClick={() => signInWithGoogle().catch((e: Error) => toast.error(e.message))} />
+      <form onSubmit={onSubmit} className="space-y-4" noValidate>
+        {error && <Alert>{error}</Alert>}
+        <Field label="Your name" htmlFor="name">
+          <Input
+            id="name"
+            autoComplete="name"
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Aarav Sharma"
+            maxLength={120}
+          />
+        </Field>
+        <Field label="Email" htmlFor="email">
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            inputMode="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@college.edu"
+          />
+        </Field>
+        <Field label="Password" htmlFor="password">
+          <Input
+            id="password"
+            type="password"
+            autoComplete="new-password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="At least 8 characters"
+          />
+          {password && (
+            <div className="flex items-center gap-3 pt-1">
+              <div className="flex flex-1 gap-1">
+                {[0, 1, 2, 3].map((i) => (
+                  <span
+                    key={i}
+                    className={cn('h-1.5 flex-1 rounded-full transition-colors duration-300', i < score ? STRENGTH_BAR[score] : 'bg-surface-3')}
+                  />
+                ))}
+              </div>
+              <span className="text-[12px] font-medium text-fg-faint">{STRENGTH[score]}</span>
+            </div>
+          )}
+        </Field>
+        <Button type="submit" size="lg" block loading={busy} disabled={!name || !email || !password}>
+          Create account
+        </Button>
+        <p className="text-center text-[12px] text-fg-faint">We never ask for Aadhaar, PAN or any government ID.</p>
+      </form>
+      <p className="mt-6 text-center text-sm text-fg-muted">
+        Already have an account?{' '}
+        <Link to="/login" className="font-semibold text-accent">
+          Sign in
+        </Link>
+      </p>
+    </AuthLayout>
   );
 }

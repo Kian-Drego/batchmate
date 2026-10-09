@@ -1,52 +1,40 @@
-import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Spinner } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
-import { Alert, Spinner } from '../components/ui';
 
-/** Handles the Google OAuth redirect: /auth/callback?token=... */
+/** Landing for email confirmation + OAuth redirects (PKCE code exchange is automatic). */
 export default function AuthCallbackPage() {
-  const [params] = useSearchParams();
-  const { loginWithToken } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const [error, setError] = useState<string | null>(null);
-  const ran = useRef(false);
+  const [timedOut, setTimedOut] = useState(false);
+  const error = new URLSearchParams(window.location.search).get('error_description');
 
   useEffect(() => {
-    if (ran.current) return;
-    ran.current = true;
+    if (user) navigate('/dashboard', { replace: true });
+  }, [user, navigate]);
 
-    const token = params.get('token');
-    const oauthError = params.get('error');
-    if (oauthError) {
-      setError('Google sign-in could not be completed. Try email sign-in instead.');
-      return;
-    }
-    if (!token) {
-      setError('Missing authentication token in the redirect.');
-      return;
-    }
-    loginWithToken(token)
-      .then(() => navigate('/dashboard', { replace: true }))
-      .catch(() => setError('Could not complete sign-in. Please try again.'));
-  }, [params, loginWithToken, navigate]);
+  useEffect(() => {
+    const t = setTimeout(() => setTimedOut(true), 8000);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (error || (timedOut && !loading && !user)) {
+    return (
+      <div className="flex min-h-dvh flex-col items-center justify-center px-6 text-center">
+        <h1 className="text-xl font-bold">Sign-in didn&apos;t complete</h1>
+        <p className="mt-2 max-w-sm text-sm text-fg-muted">{error ?? 'The link may have expired or already been used.'}</p>
+        <Link to="/login" className="mt-6 font-semibold text-accent">
+          Back to sign in
+        </Link>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-5">
-      <div className="w-full max-w-sm text-center">
-        {error ? (
-          <>
-            <Alert tone="danger">{error}</Alert>
-            <a href="/login" className="mt-4 inline-block text-sm font-semibold text-lavender-ink underline">
-              Return to sign in
-            </a>
-          </>
-        ) : (
-          <>
-            <Spinner className="mx-auto h-6 w-6" />
-            <p className="mt-3 text-sm text-ink-soft">Completing sign-in…</p>
-          </>
-        )}
-      </div>
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-3">
+      <Spinner className="h-7 w-7" />
+      <p className="text-sm text-fg-muted">Signing you in…</p>
     </div>
   );
 }

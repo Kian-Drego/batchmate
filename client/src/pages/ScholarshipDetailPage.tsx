@@ -1,575 +1,278 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { useMemo, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import {
   ArrowLeft,
   ArrowUpRight,
-  CheckCircle2,
-  ChevronRight,
-  Circle,
-  ExternalLink,
+  CalendarClock,
+  ClipboardCheck,
   FileCheck2,
   GraduationCap,
   Info,
-  Layers,
-  ListChecks,
-  RefreshCw,
-  Send,
+  Repeat,
+  Share2,
   ShieldCheck,
-  X,
 } from 'lucide-react';
-import { api } from '../lib/api';
-import type { Application, Match, Scholarship } from '../lib/types';
+import { evaluateScholarship } from '@shared/matching.ts';
+import { useApplications, useDocuments, usePassport, useScholarship, useStartApplication } from '../lib/queries';
+import { tick } from '../lib/haptics';
 import { deadlineLabel, inr, shortDate } from '../lib/format';
-import { MatchReasonList } from '../components/MatchReasons';
-import {
-  Alert,
-  Badge,
-  Button,
-  EmptyState,
-  Panel,
-  Progress,
-  SectionHeader,
-  Spinner,
-  StatusBadge,
-  TierBadge,
-} from '../components/ui';
+import MatchReasons from '../components/MatchReasons';
+import ApplySheet from '../components/ApplySheet';
+import { scoreTone } from '../components/ScholarshipCard';
+import { Badge, Button, Card, EmptyState, IconButton, Ring, Skeleton, StatusBadge, TierBadge, cn } from '../components/ui';
 
-interface DetailResponse {
-  scholarship: Scholarship;
-  match: Match;
-  profileCompleteness: { percent: number; missing: string[] };
-}
-
-const PIPELINE = ['Not Started', 'In Progress', 'Submitted', 'Verification Pending', 'Awarded'];
-
-function GuidedDrawer({
-  open,
-  onClose,
-  scholarship,
-  application,
-  onApplicationChange,
-}: {
-  open: boolean;
-  onClose: () => void;
-  scholarship: Scholarship;
-  application: Application | null;
-  onApplicationChange: (a: Application) => void;
-}) {
-  const [busyId, setBusyId] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [note, setNote] = useState<string | null>(null);
-
-  const toggle = async (itemId: string, done: boolean) => {
-    if (!application) return;
-    setBusyId(itemId);
-    try {
-      const data = await api.patch<{ application: Application }>(
-        `/applications/${application._id}/checklist/${itemId}`,
-        { done }
-      );
-      onApplicationChange(data.application);
-    } finally {
-      setBusyId(null);
-    }
-  };
-
-  const advance = async (status: string) => {
-    if (!application) return;
-    setNote(null);
-    try {
-      const data = await api.patch<{ application: Application }>(
-        `/applications/${application._id}/status`,
-        { status }
-      );
-      onApplicationChange(data.application);
-    } catch (err) {
-      setNote((err as Error).message);
-    }
-  };
-
-  const nativeSubmit = async () => {
-    if (!application) return;
-    setSubmitting(true);
-    setNote(null);
-    try {
-      const data = await api.post<{ application: Application }>(
-        `/applications/${application._id}/submit`
-      );
-      onApplicationChange(data.application);
-    } catch (err) {
-      setNote((err as Error).message);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const done = application ? application.checklist.filter((c) => c.done).length : 0;
-  const total = application?.checklist.length ?? 0;
-  const pct = total ? (done / total) * 100 : 0;
-  const currentStageIndex = application ? PIPELINE.indexOf(application.status) : -1;
-
+function Section({ icon: Icon, title, children }: { icon: typeof Info; title: string; children: React.ReactNode }) {
   return (
-    <AnimatePresence>
-      {open && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 bg-black/40"
-            onClick={onClose}
-          />
-          <motion.aside
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'tween', duration: 0.25 }}
-            className="fixed right-0 top-0 z-50 flex h-full w-full max-w-3xl flex-col border-l border-line bg-paper"
-            role="dialog"
-            aria-label="Guided application"
-          >
-            <div className="flex items-center justify-between border-b border-line bg-paper-raised px-5 py-3">
-              <div className="min-w-0">
-                <div className="label-eyebrow">Guided application</div>
-                <div className="truncate font-semibold text-ink">{scholarship.title}</div>
-              </div>
-              <button
-                onClick={onClose}
-                className="rounded-card border border-line p-2 hover:bg-paper-sunken"
-                aria-label="Close"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="grid flex-1 overflow-hidden lg:grid-cols-2">
-              {/* Left: interactive checklist + tracker */}
-              <div className="overflow-y-auto border-line p-5 lg:border-r">
-                <div className="mb-3 flex items-center gap-2">
-                  <ListChecks className="h-4 w-4 text-lavender" aria-hidden />
-                  <h3 className="font-semibold">Application checklist</h3>
-                </div>
-                <Progress value={pct} label={`${done}/${total} steps complete`} tone={pct === 100 ? 'eligible' : 'lavender'} />
-
-                {note && (
-                  <div className="mt-3">
-                    <Alert tone="warn">{note}</Alert>
-                  </div>
-                )}
-
-                <ul className="mt-4 space-y-1">
-                  {application?.checklist.map((item) => (
-                    <li key={item._id}>
-                      <button
-                        onClick={() => toggle(item._id, !item.done)}
-                        disabled={busyId === item._id}
-                        className="flex w-full items-start gap-3 rounded-card border border-transparent px-2 py-2 text-left hover:border-line-faint hover:bg-paper-sunken disabled:opacity-60"
-                      >
-                        {item.done ? (
-                          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-eligible" />
-                        ) : (
-                          <Circle className="mt-0.5 h-4 w-4 shrink-0 text-ink-faint" />
-                        )}
-                        <span className={`text-sm ${item.done ? 'text-ink-faint line-through' : 'text-ink-soft'}`}>
-                          {item.label}
-                        </span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-
-                <div className="mt-6 border-t border-line-faint pt-4">
-                  <div className="mb-3 flex items-center gap-2">
-                    <RefreshCw className="h-4 w-4 text-lavender" aria-hidden />
-                    <h3 className="font-semibold">Status tracker</h3>
-                  </div>
-                  <ol className="space-y-2">
-                    {PIPELINE.map((stage, i) => (
-                      <li key={stage} className="flex items-center gap-3 text-sm">
-                        <span
-                          className={`flex h-5 w-5 items-center justify-center rounded-pill border text-[10px] font-bold ${
-                            i <= currentStageIndex
-                              ? 'border-eligible bg-eligible text-paper'
-                              : 'border-line-faint text-ink-faint'
-                          }`}
-                        >
-                          {i + 1}
-                        </span>
-                        <span className={i <= currentStageIndex ? 'font-medium text-ink' : 'text-ink-faint'}>
-                          {stage}
-                        </span>
-                      </li>
-                    ))}
-                  </ol>
-                  {application && (
-                    <div className="mt-3 flex items-center gap-2">
-                      <span className="text-xs text-ink-faint">Current:</span>
-                      <StatusBadge status={application.status} />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Right: external portal */}
-              <div className="flex flex-col overflow-y-auto bg-paper-sunken/50 p-5">
-                <div className="mb-3 flex items-center gap-2">
-                  <ExternalLink className="h-4 w-4 text-lavender" aria-hidden />
-                  <h3 className="font-semibold">Official portal</h3>
-                </div>
-
-                <Panel flat className="p-4">
-                  <div className="label-eyebrow">Provider</div>
-                  <div className="mt-1 font-medium text-ink">{scholarship.provider}</div>
-                  <div className="mt-3 flex items-center gap-2 text-xs text-ink-faint">
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                    Source verified · last scraped {shortDate(scholarship.lastScrapedAt)}
-                  </div>
-                  <a
-                    href={scholarship.externalPortalUrl ?? scholarship.officialSourceUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-4 block"
-                  >
-                    <Button className="w-full">
-                      Open official portal <ArrowUpRight className="h-4 w-4" />
-                    </Button>
-                  </a>
-                  <p className="mt-2 break-all text-xs text-ink-faint">
-                    {scholarship.externalPortalUrl ?? scholarship.officialSourceUrl}
-                  </p>
-                </Panel>
-
-                <div className="mt-4">
-                  <div className="mb-2 flex items-center gap-2">
-                    <Layers className="h-4 w-4 text-lavender" aria-hidden />
-                    <h4 className="text-sm font-semibold">Provider application steps</h4>
-                  </div>
-                  <ol className="space-y-2">
-                    {scholarship.applicationSteps.map((step, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-ink-soft">
-                        <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-ink-faint" />
-                        {step}
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-
-                <div className="mt-4">
-                  <div className="mb-2 flex items-center gap-2">
-                    <FileCheck2 className="h-4 w-4 text-lavender" aria-hidden />
-                    <h4 className="text-sm font-semibold">Documents to carry</h4>
-                  </div>
-                  <ul className="flex flex-wrap gap-1.5">
-                    {scholarship.requiredDocuments.map((d) => (
-                      <li key={d}>
-                        <Badge tone="neutral">{d}</Badge>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {application && (
-                  <div className="mt-6 space-y-2 border-t border-line-faint pt-4">
-                    {application.status === 'In Progress' && application.mode === 'external' && (
-                      <Button className="w-full" onClick={() => advance('Submitted')}>
-                        Mark as submitted on portal
-                      </Button>
-                    )}
-                    {application.status === 'Submitted' && (
-                      <Button variant="secondary" className="w-full" onClick={() => advance('Verification Pending')}>
-                        Mark verification pending
-                      </Button>
-                    )}
-                    {application.status === 'Verification Pending' && (
-                      <div className="flex gap-2">
-                        <Button className="flex-1" onClick={() => advance('Awarded')}>
-                          Mark awarded
-                        </Button>
-                        <Button variant="danger" className="flex-1" onClick={() => advance('Rejected')}>
-                          Mark rejected
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </motion.aside>
-        </>
-      )}
-    </AnimatePresence>
+    <Card className="p-5">
+      <h2 className="mb-3 flex items-center gap-2 text-[15px] font-bold">
+        <Icon className="h-[18px] w-[18px] text-accent" /> {title}
+      </h2>
+      {children}
+    </Card>
   );
 }
 
 export default function ScholarshipDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [detail, setDetail] = useState<DetailResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [application, setApplication] = useState<Application | null>(null);
-  const [starting, setStarting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { data: s, isLoading, error } = useScholarship(id);
+  const passport = usePassport();
+  const documents = useDocuments();
+  const applications = useApplications();
+  const start = useStartApplication();
+  const [sheetOpen, setSheetOpen] = useState(false);
 
-  useEffect(() => {
-    if (!id) return;
-    Promise.all([
-      api.get<DetailResponse>(`/scholarships/${id}`),
-      api.get<{ applications: Application[] }>('/applications'),
-    ])
-      .then(([d, apps]) => {
-        setDetail(d);
-        setApplication(apps.applications.find((a) => a.scholarship?._id === id) ?? null);
-      })
-      .catch((err) => setError((err as Error).message))
-      .finally(() => setLoading(false));
-  }, [id]);
+  const application = applications.data?.find((a) => a.scholarship_id === id);
+  const match = useMemo(
+    () => (s && passport.data ? evaluateScholarship(s, passport.data, documents.data ?? []) : null),
+    [s, passport.data, documents.data]
+  );
+  const owned = new Set((documents.data ?? []).map((d) => d.type));
 
-  const scholarship = detail?.scholarship;
-  const match = detail?.match;
-
-  const startApplication = async () => {
-    if (!id) return;
-    setStarting(true);
-    setError(null);
-    try {
-      const data = await api.post<{ application: Application }>('/applications', {
-        scholarshipId: id,
-      });
-      setApplication(data.application);
-      setDrawerOpen(true);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setStarting(false);
-    }
-  };
-
-  const nativeSubmit = async () => {
-    if (!application) return;
-    setError(null);
-    try {
-      const data = await api.post<{ application: Application }>(
-        `/applications/${application._id}/submit`
-      );
-      setApplication(data.application);
-    } catch (err) {
-      const e = err as Error & { details?: { missingProfileFields?: string[]; missingDocuments?: string[] } };
-      setError(e.message);
-    }
-  };
-
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <Spinner className="h-6 w-6" />
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-24" />
+        <Skeleton className="h-56 w-full rounded-3xl" />
+        <Skeleton className="h-40 w-full rounded-2xl" />
       </div>
     );
   }
-
-  if (!scholarship || !match) {
-    return (
-      <EmptyState
-        icon={Info}
-        title="Scholarship unavailable"
-        description={error ?? 'This record could not be loaded.'}
-      />
-    );
+  if (!s) {
+    return <EmptyState icon={Info} title="Scholarship unavailable" description={(error as Error)?.message ?? 'It may have been removed.'} />;
   }
 
-  const dl = deadlineLabel(scholarship.deadline);
-  const criteria: { label: string; value: string }[] = [
-    { label: 'Degree', value: scholarship.degree.join(', ') || 'Any' },
-    { label: 'Current year', value: scholarship.currentYearAllowed.join(', ') || 'Any' },
-    { label: 'Category', value: scholarship.category.join(', ') || 'Any' },
-    { label: 'Domicile', value: scholarship.stateDomicile.join(', ') || 'Any' },
-    { label: 'Gender', value: scholarship.gender.join(', ') || 'Any' },
-    { label: 'Income limit', value: scholarship.incomeLimit ? inr(scholarship.incomeLimit) : 'No limit' },
-    { label: 'Minimum marks', value: scholarship.marksMin ? `${scholarship.marksMin}%` : 'None specified' },
+  const dl = deadlineLabel(s.deadline);
+  const closed = dl.tone === 'closed';
+
+  const onStart = () =>
+    start.mutate(s.id, {
+      onSuccess: () => {
+        tick(10);
+        setSheetOpen(true);
+      },
+      onError: (e) => toast.error(e.message),
+    });
+
+  const share = async () => {
+    const url = window.location.href;
+    try {
+      if (navigator.share) await navigator.share({ title: s.title, text: `${s.title} — ${inr(s.amount)}`, url });
+      else {
+        await navigator.clipboard.writeText(url);
+        toast.success('Link copied');
+      }
+    } catch {
+      /* user cancelled */
+    }
+  };
+
+  const criteria = [
+    ['Degree', s.degree.join(', ') || 'Any'],
+    ['Year', s.current_year_allowed.join(', ') || 'Any'],
+    ['Category', s.category.join(', ') || 'Any'],
+    ['Domicile', s.state_domicile.join(', ') || 'Any'],
+    ['Gender', s.gender.join(', ') || 'Any'],
+    ['Income limit', s.income_limit ? inr(s.income_limit) : 'No limit'],
+    ['Min. marks', s.marks_min ? `${s.marks_min}%` : 'None'],
   ];
 
   return (
-    <div>
-      <button
-        onClick={() => navigate(-1)}
-        className="mb-2 inline-flex min-h-[2.5rem] items-center gap-1.5 py-2 text-sm font-semibold text-ink-soft hover:text-ink"
-      >
-        <ArrowLeft className="h-4 w-4" /> Back to matches
-      </button>
+    <div className="pb-24 lg:pb-0">
+      <div className="mb-3 flex items-center justify-between">
+        <button onClick={() => navigate(-1)} className="tap -ml-2 inline-flex h-11 items-center gap-1.5 px-2 text-sm font-semibold text-fg-muted hover:text-fg">
+          <ArrowLeft className="h-4 w-4" /> Back
+        </button>
+        <IconButton label="Share" onClick={share}>
+          <Share2 className="h-5 w-5" />
+        </IconButton>
+      </div>
 
-      {error && (
-        <div className="mb-4">
-          <Alert tone="danger">{error}</Alert>
-        </div>
-      )}
-
-      {/* Header */}
-      <Panel className="p-6">
-        <div className="flex flex-wrap items-center gap-2">
-          <TierBadge tier={match.tier} />
-          <Badge tone="neutral">{scholarship.type}</Badge>
-          <Badge tone={dl.tone === 'urgent' ? 'stop' : dl.tone === 'soon' ? 'caution' : 'neutral'}>
-            {dl.text}
-          </Badge>
-          {scholarship.aptitudeTestRequired && (
-            <Badge tone="lavender">
+      {/* Hero */}
+      <Card className="relative overflow-hidden rounded-3xl p-5 sm:p-7" glow={match?.tier === 'Highly Eligible'}>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {match && match.hardMatch && <TierBadge tier={match.tier} />}
+          {match && !match.hardMatch && <Badge tone="danger">Not eligible</Badge>}
+          <Badge>{s.type}</Badge>
+          {s.aptitude_test_required && (
+            <Badge tone="accent">
               <GraduationCap className="h-3 w-3" /> Aptitude test
             </Badge>
           )}
         </div>
-        <h1 className="mt-3 font-serif text-3xl font-semibold text-ink">{scholarship.title}</h1>
-        <p className="mt-1 text-sm text-ink-soft">{scholarship.provider}</p>
+        <h1 className="mt-3 text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">{s.title}</h1>
+        <p className="mt-1 text-sm text-fg-muted">{s.provider}</p>
 
-        <div className="mt-5 grid grid-cols-2 gap-5 border-t border-line-faint pt-5 sm:grid-cols-4">
-          <div>
-            <div className="label-eyebrow">Award value</div>
-            <div className="mt-1 font-mono text-2xl font-semibold">{inr(scholarship.amount)}</div>
-          </div>
-          <div>
-            <div className="label-eyebrow">Fit score</div>
-            <div
-              className={`mt-1 font-mono text-2xl font-semibold ${
-                match.fitScore >= 80 ? 'text-eligible' : 'text-caution'
-              }`}
-            >
-              {match.fitScore}/100
+        <div className="mt-5 flex items-center gap-5">
+          {match && (
+            <Ring value={match.fitScore} size={76} stroke={7} tone={scoreTone(match.fitScore)}>
+              <div className="text-center">
+                <div className="font-mono text-lg font-bold leading-none tabular-nums">{match.fitScore}</div>
+                <div className="mt-0.5 text-[10px] font-semibold text-fg-faint">FIT</div>
+              </div>
+            </Ring>
+          )}
+          <div className="grid flex-1 grid-cols-2 gap-4">
+            <div>
+              <div className="text-[12px] text-fg-faint">Award</div>
+              <div className="font-mono text-xl font-bold tabular-nums text-mint">{inr(s.amount)}</div>
+            </div>
+            <div>
+              <div className="text-[12px] text-fg-faint">Deadline</div>
+              <div className={cn('text-[15px] font-bold', dl.tone === 'urgent' && 'text-hot', dl.tone === 'soon' && 'text-warn', closed && 'text-danger')}>
+                {dl.text}
+              </div>
+              <div className="text-[12px] text-fg-faint">{shortDate(s.deadline)}</div>
             </div>
           </div>
-          <div>
-            <div className="label-eyebrow">Deadline</div>
-            <div className="mt-1 text-sm font-semibold">{shortDate(scholarship.deadline)}</div>
-          </div>
-          <div>
-            <div className="label-eyebrow">Source</div>
-            <a
-              href={scholarship.officialSourceUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-1 inline-flex items-center gap-1 py-2 text-sm font-semibold text-lavender-ink underline"
-            >
-              Official <ExternalLink className="h-3 w-3" />
-            </a>
-          </div>
         </div>
+        {s.amount_description && <p className="mt-4 text-[13px] leading-relaxed text-fg-muted">{s.amount_description}</p>}
+      </Card>
 
-        {scholarship.amountDescription && (
-          <p className="mt-4 text-sm text-ink-soft">{scholarship.amountDescription}</p>
+      {/* Desktop CTA */}
+      <div className="mt-4 hidden gap-2 lg:flex">
+        {application ? (
+          <Button size="lg" onClick={() => setSheetOpen(true)}>
+            <ClipboardCheck className="h-4 w-4" /> Continue application
+          </Button>
+        ) : (
+          <Button size="lg" onClick={onStart} loading={start.isPending} disabled={closed}>
+            {closed ? 'Applications closed' : 'Start applying'}
+          </Button>
+        )}
+        {s.aptitude_test_required && (
+          <Link to={`/exams/${s.id}/take`}>
+            <Button size="lg" variant="secondary">
+              <GraduationCap className="h-4 w-4" /> Take mock test
+            </Button>
+          </Link>
+        )}
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2 [&>*]:min-w-0">
+        {match && (
+          <Section icon={ShieldCheck} title="Why you match">
+            <MatchReasons reasons={match.reasons} missing={match.missingFields} />
+          </Section>
         )}
 
-        <div className="mt-5 flex flex-wrap gap-2 border-t border-line-faint pt-5">
-          {!application ? (
-            <Button onClick={startApplication} loading={starting}>
-              {scholarship.applicationMode === 'native' ? 'Start application' : 'Start guided application'}
-            </Button>
-          ) : (
-            <>
-              <Button onClick={() => setDrawerOpen(true)}>
-                {scholarship.applicationMode === 'native' ? 'Continue application' : 'Open guided application'}
-              </Button>
-              {scholarship.applicationMode === 'native' && application.status !== 'Submitted' && (
-                <Button variant="secondary" onClick={nativeSubmit}>
-                  <Send className="h-4 w-4" /> Submit application
-                </Button>
-              )}
-            </>
-          )}
-        </div>
-      </Panel>
-
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1.5fr_1fr]">
-        <div className="space-y-6">
-          {/* Match transparency */}
-          <Panel className="p-5">
-            <h3 className="mb-3 text-lg font-semibold">Why you matched</h3>
-            <MatchReasonList reasons={match.reasons} />
-            {match.missingFields.length > 0 && (
-              <div className="mt-4">
-                <Alert tone="warn">
-                  Missing for verification: {match.missingFields.join(', ')}
-                </Alert>
+        <Section icon={Info} title="Eligibility">
+          <dl className="divide-y divide-line">
+            {criteria.map(([k, v]) => (
+              <div key={k} className="flex gap-4 py-2.5 text-sm">
+                <dt className="w-28 shrink-0 text-fg-faint">{k}</dt>
+                <dd className="font-medium">{v}</dd>
               </div>
-            )}
-          </Panel>
+            ))}
+          </dl>
+        </Section>
 
-          {/* Eligibility */}
-          <Panel className="p-5">
-            <h3 className="mb-3 text-lg font-semibold">Eligibility criteria</h3>
-            <dl className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
-              {criteria.map((c) => (
-                <div key={c.label} className="flex items-center justify-between border-b border-line-faint py-2.5">
-                  <dt className="text-sm text-ink-faint">{c.label}</dt>
-                  <dd className="max-w-[60%] text-right text-sm font-medium text-ink">{c.value}</dd>
-                </div>
-              ))}
-            </dl>
-          </Panel>
+        <Section icon={FileCheck2} title="Documents needed">
+          <ul className="flex flex-wrap gap-2">
+            {s.required_documents.map((d) => (
+              <li key={d}>
+                <Badge tone={owned.has(d) ? 'mint' : 'neutral'}>
+                  {owned.has(d) && '✓ '}
+                  {d}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+          {s.required_documents.some((d) => !owned.has(d)) && (
+            <Link to="/passport#documents" className="mt-3 inline-block text-[13px] font-semibold text-accent">
+              Upload missing documents →
+            </Link>
+          )}
+        </Section>
 
-          {/* Selection process */}
-          <Panel className="p-5">
-            <h3 className="mb-3 text-lg font-semibold">Selection process</h3>
-            <ol className="space-y-3">
-              {scholarship.selectionProcess.map((step, i) => (
-                <li key={i} className="flex items-start gap-3">
-                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-card border border-line bg-paper-sunken font-mono text-xs font-semibold">
-                    {i + 1}
-                  </span>
-                  <span className="text-sm text-ink-soft">{step}</span>
+        {s.selection_process.length > 0 && (
+          <Section icon={CalendarClock} title="Selection process">
+            <ol className="space-y-2">
+              {s.selection_process.map((step, i) => (
+                <li key={i} className="flex gap-3 text-sm text-fg-muted">
+                  <span className="font-mono font-bold text-accent">{String(i + 1).padStart(2, '0')}</span>
+                  {step}
                 </li>
               ))}
             </ol>
-          </Panel>
-        </div>
+          </Section>
+        )}
 
-        <div className="space-y-6">
-          {/* Documents */}
-          <Panel className="p-5">
-            <h3 className="mb-3 text-lg font-semibold">Required documents</h3>
-            <ul className="space-y-2">
-              {scholarship.requiredDocuments.map((d) => (
-                <li key={d} className="flex items-center gap-2 text-sm text-ink-soft">
-                  <ChevronRight className="h-4 w-4 text-ink-faint" /> {d}
-                </li>
-              ))}
-            </ul>
-            <p className="mt-3 text-xs text-ink-faint">
-              Upload these on your passport to raise your document-readiness score.
-            </p>
-          </Panel>
-
-          {/* Renewal */}
-          {scholarship.renewalCriteria && (
-            <Panel className="p-5">
-              <h3 className="mb-3 text-lg font-semibold">Renewal conditions</h3>
-              <ul className="space-y-2 text-sm text-ink-soft">
-                {scholarship.renewalCriteria.minimumCgpa !== undefined && (
-                  <li>Minimum CGPA: {scholarship.renewalCriteria.minimumCgpa}</li>
-                )}
-                {scholarship.renewalCriteria.minimumAttendance !== undefined && (
-                  <li>Minimum attendance: {scholarship.renewalCriteria.minimumAttendance}%</li>
-                )}
-                {scholarship.renewalCriteria.notes && <li>{scholarship.renewalCriteria.notes}</li>}
-              </ul>
-              {scholarship.aptitudeTestRequired && (
-                <a
-                  href={`/exams/${scholarship._id}/take`}
-                  className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-lavender-ink underline"
-                >
-                  Prepare with a mock test <ChevronRight className="h-4 w-4" />
-                </a>
+        {s.renewal_criteria && (
+          <Section icon={Repeat} title="Keeping it">
+            <ul className="space-y-1.5 text-sm text-fg-muted">
+              {s.renewal_criteria.minimumCgpa != null && <li>Maintain CGPA ≥ <b className="text-fg">{s.renewal_criteria.minimumCgpa}</b></li>}
+              {s.renewal_criteria.minimumAttendance != null && (
+                <li>Attendance ≥ <b className="text-fg">{s.renewal_criteria.minimumAttendance}%</b></li>
               )}
-            </Panel>
+              {s.renewal_criteria.notes && <li>{s.renewal_criteria.notes}</li>}
+            </ul>
+          </Section>
+        )}
+
+        {s.description && (
+          <Section icon={Info} title="About">
+            <p className="text-sm leading-relaxed text-fg-muted">{s.description}</p>
+          </Section>
+        )}
+      </div>
+
+      <a
+        href={s.official_source_url}
+        target="_blank"
+        rel="noreferrer"
+        className="mt-4 flex items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3 text-[13px] text-fg-muted transition-colors hover:border-line-strong"
+      >
+        <span className="inline-flex items-center gap-2">
+          <ShieldCheck className="h-4 w-4 text-mint" /> Verified source · refreshed {shortDate(s.last_scraped_at)}
+        </span>
+        <ArrowUpRight className="h-4 w-4" />
+      </a>
+
+      {/* Mobile sticky CTA (above the tab bar) */}
+      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-line bg-bg/95 px-4 py-3 lg:hidden">
+        <div className="mx-auto flex max-w-lg gap-2">
+          {s.aptitude_test_required && (
+            <Link to={`/exams/${s.id}/take`} aria-label="Take mock test">
+              <Button size="lg" variant="secondary" iconOnly>
+                <GraduationCap className="h-5 w-5" />
+              </Button>
+            </Link>
+          )}
+          {application ? (
+            <Button size="lg" className="flex-1" onClick={() => setSheetOpen(true)}>
+              Continue · <StatusBadge status={application.status} />
+            </Button>
+          ) : (
+            <Button size="lg" className="flex-1" onClick={onStart} loading={start.isPending} disabled={closed}>
+              {closed ? 'Applications closed' : 'Start applying'}
+            </Button>
           )}
         </div>
       </div>
 
-      <GuidedDrawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        scholarship={scholarship}
-        application={application}
-        onApplicationChange={setApplication}
-      />
+      <ApplySheet open={sheetOpen} onClose={() => setSheetOpen(false)} scholarship={s} application={application} />
     </div>
   );
 }
