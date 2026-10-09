@@ -106,7 +106,7 @@ export default function DashboardPage() {
           </Dial>
           <div className="min-w-0">
             <div className="text-[13px] font-medium text-ink-3">Exam ready</div>
-            <div className="text-[12.5px] text-ink-2">{perf.data.totalAttempts ? `${perf.data.totalAttempts} mocks taken` : 'Try a mock'}</div>
+            <div className="text-[12.5px] text-ink-2">{perf.data.totalAttempts ? `${perf.data.totalAttempts} mock${perf.data.totalAttempts === 1 ? '' : 's'} taken` : 'Try a mock'}</div>
           </div>
         </Link>
       </div>

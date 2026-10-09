@@ -12,6 +12,7 @@ import {
   LayoutGrid,
   Library,
   LineChart,
+  LogOut,
   Moon,
   Radar,
   Sparkle,
@@ -69,6 +70,15 @@ export function ThemeButton({ className }: { className?: string }) {
   return (
     <IconButton label={theme === 'dark' ? 'Light mode' : 'Dark mode'} onClick={toggle} className={className}>
       {theme === 'dark' ? <Sun className="h-[19px] w-[19px]" /> : <Moon className="h-[19px] w-[19px]" />}
+    </IconButton>
+  );
+}
+
+export function SignOutButton({ className }: { className?: string }) {
+  const { signOut } = useAuth();
+  return (
+    <IconButton label="Log out" onClick={() => void signOut()} className={cn('hover:bg-rose hover:text-rose-ink', className)}>
+      <LogOut className="h-[19px] w-[19px]" />
     </IconButton>
   );
 }
@@ -145,6 +155,7 @@ function Sidebar({ items, home }: { items: NavItem[]; home: string }) {
           <div className="truncate text-[12px] text-ink-3">{profile?.role === 'admin' ? 'Admin' : 'Student'}</div>
         </div>
         <ThemeButton />
+        <SignOutButton />
       </div>
     </aside>
   );
@@ -171,8 +182,9 @@ export default function AppShell({ variant }: { variant: 'student' | 'admin' }) 
         <header className="sticky top-0 z-30 bg-canvas/90 pt-safe-t lg:hidden">
           <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-4">
             <Logo to={home} />
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5">
               <ThemeButton />
+              <SignOutButton />
               <Link to={admin ? '/admin/more' : '/passport'} aria-label="Account" className="press ml-1">
                 <Avatar name={profile?.name} src={profile?.avatar_url} size={38} />
               </Link>
