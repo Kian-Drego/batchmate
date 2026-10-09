@@ -11,8 +11,9 @@ millennials, often on low-end Android devices.
 
 ## Ground rules
 
-- **Never push to GitHub** (or open PRs) without explicit approval from the repo owner. Commit
-  locally on a feature branch only.
+- **Never push to GitHub** (or open PRs) without explicit approval. Pushing to `main` deploys to
+  production (Vercel). Commits are authored as `kian-drego <drego.kian.boi@gmail.com>`
+  (repo-local git config).
 - **Never commit secrets.** `.env` (root, server-side secrets incl. service-role key and DB URL)
   and `client/.env.local` (browser-safe values) are gitignored. Only the *publishable* key may reach
   the browser. Service-role / secret keys belong only in `.env`, Edge Function secrets, or Vault.
@@ -23,7 +24,7 @@ millennials, often on low-end Android devices.
 ## Architecture (Supabase-native)
 
 ```
-client/                React 18 + Vite + Tailwind SPA (GitHub Pages, batchmate.duckdns.org)
+client/                React 18 + Vite + Tailwind SPA (Vercel, root dir `client`; batchmate.duckdns.org)
 supabase/
   migrations/          Versioned SQL — schema, RLS, RPCs, triggers, storage, pg_cron
   functions/
@@ -136,7 +137,8 @@ Admin login: `npm --workspace scripts run create-admin` (credentials land in `.e
 - [x] Admin console + audit trail (`20261010000001`, `20261010000002`)
 - [x] Soft-tactile redesign, light + dark
 - [ ] Supabase Auth URL config (site URL + redirect URLs) applied on the hosted project
-- [ ] GitHub repo variables `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` set
+- [x] Hosting moved to Vercel (env vars set there); GitHub Pages workflow + CNAME removed
+- [ ] batchmate.duckdns.org added in Vercel and DuckDNS A record → 76.76.21.21
 - [ ] Custom SMTP for auth emails (built-in sender is rate-limited)
 
 ## Scripts (`scripts/` workspace, reads root `.env`)

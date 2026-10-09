@@ -16,7 +16,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg', 'CNAME'],
+      includeAssets: ['icon.svg'],
       manifest: {
         name: 'BatchMate — scholarships that fit you',
         short_name: 'BatchMate',

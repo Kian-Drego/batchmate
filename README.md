@@ -4,7 +4,7 @@ A mobile-first web app for **scholarship discovery, eligibility matching, guided
 document retention and mock-exam prep** for Indian students.
 
 - **Frontend:** React 18 + Vite + Tailwind + Framer Motion, installable PWA, "soft tactile" UI with light + dark modes.
-  Hosted on GitHub Pages at <https://batchmate.duckdns.org>.
+  Hosted on Vercel at <https://batchmate.duckdns.org> (also <https://batchmate-liart.vercel.app>).
 - **Backend:** Supabase. That means Postgres with row-level security, Auth, Storage, Edge
   Functions and pg_cron. There is no separate server to host.
 
@@ -79,7 +79,8 @@ npx supabase secrets set --project-ref <ref> AI_PROVIDER=openai-compatible \
 ### Supabase dashboard settings
 
 - **Auth → URL configuration:** Site URL `https://batchmate.duckdns.org`; redirect URLs
-  `https://batchmate.duckdns.org/**` and `http://localhost:5173/**`.
+  `https://batchmate.duckdns.org/**`, `https://batchmate-liart.vercel.app/**` and
+  `http://localhost:5173/**`.
 - **Auth → Providers → Google** (optional): add the client ID and secret, then set
   `VITE_GOOGLE_AUTH=true`.
 - **Auth → SMTP:** configure a custom SMTP sender for production. The built-in sender is heavily
@@ -87,15 +88,18 @@ npx supabase secrets set --project-ref <ref> AI_PROVIDER=openai-compatible \
 
 ---
 
-## Deployment (GitHub Pages)
+## Deployment (Vercel)
 
-1. Repo **Settings → Pages → Source: GitHub Actions**.
-2. **Settings → Secrets and variables → Actions → Variables**: `VITE_SUPABASE_URL`,
-   `VITE_SUPABASE_PUBLISHABLE_KEY`, optionally `VITE_GOOGLE_AUTH`.
-3. Push to `main`. `.github/workflows/deploy-pages.yml` builds `client/dist`, adds a `404.html`
-   SPA fallback and publishes it.
-4. DuckDNS: point `batchmate` at the GitHub Pages A records (`185.199.108–111.153`).
-   `client/public/CNAME` carries the domain.
+1. Vercel project settings: **Root Directory** `client`, framework **Vite**, build `npm run build`,
+   output `dist`. Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`,
+   optionally `VITE_GOOGLE_AUTH`. Every push to `main` deploys.
+2. `client/vercel.json` (mirrored at the repo root) rewrites every route to `index.html` so deep
+   links like `/admin/review` work, caches hashed assets for a year and never caches the service
+   worker.
+3. **Custom domain:** Vercel → Project → Settings → Domains → add `batchmate.duckdns.org`.
+   `duckdns.org` is on the public-suffix list, so Vercel treats it as an apex domain and asks for
+   an **A record `76.76.21.21`** (DuckDNS cannot create CNAMEs). On duckdns.org set the `batchmate`
+   IPv4 to `76.76.21.21` and clear any IPv6. Vercel issues the HTTPS certificate automatically.
 
 ## Performance budget
 
@@ -103,7 +107,7 @@ The app targets low-end Android phones on mobile data:
 - Routes are code-split.
 - Animation features load lazily, after first paint.
 - Only `transform` and `opacity` are animated.
-- Glows are static `box-shadow`s, never `filter: blur`.
-- Fonts are Latin-only variable fonts (~68 KB).
+- Shadows and paper grain are static, never `filter: blur`.
+- Fonts are Latin-only variable fonts (~61 KB).
 - `prefers-reduced-motion` is honoured.
 - Installable PWA with an offline app shell.
