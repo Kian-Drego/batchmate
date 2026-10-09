@@ -136,7 +136,9 @@ Admin login: `npm --workspace scripts run create-admin` (credentials land in `.e
 - [x] UI overhaul (dark-first, mobile-first, PWA)
 - [x] Admin console + audit trail (`20261010000001`, `20261010000002`)
 - [x] Soft-tactile redesign, light + dark
-- [ ] Supabase Auth URL config (site URL + redirect URLs) applied on the hosted project
+- [x] Supabase Auth URL config applied via `npx supabase config push` (config.toml mirrors the
+  hosted project — preview the diff before pushing; never push dev defaults like
+  `enable_confirmations = false`)
 - [x] Hosting moved to Vercel (env vars set there); GitHub Pages workflow + CNAME removed
 - [ ] batchmate.duckdns.org added in Vercel and DuckDNS A record → 76.76.21.21
 - [ ] Custom SMTP for auth emails (built-in sender is rate-limited)
