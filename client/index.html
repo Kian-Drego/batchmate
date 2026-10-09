@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="BatchMate: match eligible scholarships, track guided applications and prepare for aptitude tests."
+    />
+    <title>BatchMate</title>
+    <script>
+      // Apply the stored theme before first paint so there is no light flash.
+      try {
+        if (localStorage.getItem('sp-theme') === 'dark') {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) {
+        /* storage unavailable */
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

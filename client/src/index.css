@@ -1,0 +1,134 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+
+    /* Text (ink) — near-black with a violet undertone */
+    --ink: 26 22 38;
+    --ink-soft: 69 63 87;
+    --ink-faint: 111 106 128;
+
+    /* Surfaces (paper) — lavender-tinted paper */
+    --paper: 246 243 251;
+    --paper-raised: 255 255 255;
+    --paper-sunken: 237 232 247;
+
+    /* Rules */
+    --line: 26 22 38;
+    --line-faint: 216 209 232;
+
+    /* Accent — lavender */
+    --lavender: 122 87 209;
+    --lavender-ink: 90 59 166;
+    --lavender-soft: 237 230 252;
+
+    /* Semantic states */
+    --eligible: 14 122 84;
+    --eligible-soft: 220 242 232;
+    --caution: 168 94 6;
+    --caution-soft: 251 235 211;
+    --stop: 179 38 30;
+    --stop-soft: 248 225 223;
+
+    /* Solid-ink surfaces (primary buttons, active nav, badges) */
+    --inverse: 26 22 38;
+    --inverse-fg: 246 243 251;
+  }
+
+  .dark {
+    color-scheme: dark;
+
+    /* Text (ink) — soft lavender-greys, not pure white, to lower glare */
+    --ink: 210 206 224;
+    --ink-soft: 168 162 188;
+    --ink-faint: 126 120 145;
+
+    /* Surfaces (paper) — violet-tinted charcoal instead of neutral black */
+    --paper: 26 24 34;
+    --paper-raised: 34 31 44;
+    --paper-sunken: 20 18 24;
+
+    /* Rules — quiet, low-contrast separation */
+    --line: 58 53 72;
+    --line-faint: 42 39 53;
+
+    /* Accent — lifted lavender for contrast on dark surfaces */
+    --lavender: 178 152 240;
+    --lavender-ink: 205 188 247;
+    --lavender-soft: 46 39 67;
+
+    /* Semantic states — softened hues on deep tinted grounds */
+    --eligible: 116 203 168;
+    --eligible-soft: 24 46 38;
+    --caution: 224 178 112;
+    --caution-soft: 47 38 24;
+    --stop: 232 148 140;
+    --stop-soft: 49 29 27;
+
+    /* Solid-ink surfaces become a muted lavender-slate, not bright white */
+    --inverse: 69 63 87;
+    --inverse-fg: 228 224 236;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-paper text-ink font-sans antialiased;
+    /* Subtle paper grain via layered radial dots; not a blurry gradient hero. */
+    background-image: radial-gradient(rgb(var(--ink) / 0.05) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-serif tracking-tight;
+  }
+
+  :focus-visible {
+    @apply outline-none ring-2 ring-lavender ring-offset-2 ring-offset-paper;
+  }
+
+  ::selection {
+    background: #7a57d1;
+    color: #fff;
+  }
+}
+
+@layer components {
+  .label-eyebrow {
+    @apply font-mono text-[11px] uppercase tracking-[0.18em] text-ink-faint;
+  }
+
+  .panel {
+    @apply border border-line bg-paper-raised rounded-card;
+  }
+
+  .panel-flat {
+    @apply border border-line-faint bg-paper-raised rounded-card;
+  }
+
+  .field-label {
+    @apply block text-sm font-semibold text-ink mb-1.5;
+  }
+
+  .field-hint {
+    @apply text-xs text-ink-faint mt-1;
+  }
+
+  .input {
+    @apply w-full border border-line bg-paper-raised rounded-card px-3 py-2.5 text-sm text-ink
+      placeholder:text-ink-faint focus:border-lavender focus:ring-1 focus:ring-lavender;
+  }
+
+  .data-value {
+    @apply font-mono tabular-nums;
+  }
+}
