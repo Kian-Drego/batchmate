@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Activity, ArrowUpRight, Library, LineChart, LogOut, Radar, type LucideIcon } from 'lucide-react';
+import { Activity, Library, LineChart, LogOut, Radar, type LucideIcon } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Avatar, PageTitle, Surface, cn, tint, type Tone } from '../../components/ui';
 
@@ -34,9 +34,6 @@ export default function AdminMorePage() {
         ))}
       </div>
 
-      <Link to="/dashboard" className="press mt-3 flex items-center justify-between rounded-full border border-line bg-card px-5 py-4 text-[14.5px] font-semibold shadow-soft">
-        See the student app <ArrowUpRight className="h-4 w-4 text-ink-3" />
-      </Link>
       <button
         onClick={() => void signOut()}
         className="press mt-3 flex h-14 w-full items-center justify-center gap-2 rounded-full border border-line bg-card text-[14.5px] font-semibold text-rose-ink shadow-soft"

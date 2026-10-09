@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Eye, EyeOff } from 'lucide-react';
 import AuthLayout, { GoogleButton } from '../components/AuthLayout';
@@ -13,8 +13,7 @@ function friendly(message: string): string {
 }
 
 export default function LoginPage() {
-  const { user, signIn, signInWithGoogle } = useAuth();
-  const navigate = useNavigate();
+  const { user, profile, signIn, signInWithGoogle } = useAuth();
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? '/';
   const [email, setEmail] = useState('');
@@ -23,7 +22,12 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (user) return <Navigate to={from} replace />;
+  if (user) {
+    if (!profile) return null; // role still loading
+    const isAdmin = profile.role === 'admin';
+    const fits = from !== '/' && from.startsWith('/admin') === isAdmin;
+    return <Navigate to={fits ? from : isAdmin ? '/admin' : '/dashboard'} replace />;
+  }
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -31,7 +35,7 @@ export default function LoginPage() {
     setError(null);
     try {
       await signIn(email, password);
-      navigate(from, { replace: true });
+      // Redirect happens above once the profile (and role) has loaded.
     } catch (err) {
       setError(friendly((err as Error).message));
     } finally {

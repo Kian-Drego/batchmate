@@ -104,6 +104,9 @@ Grotesque (display) + Figtree (text). Light/dark follows the OS until the user t
 Avoid the AI-template look: no gradient text, no neon glows, no uppercase tracked eyebrows,
 no emoji as decoration; sentence-case, human copy.
 
+Routing by role: student routes use `<ProtectedRoute student>` (admins bounce to `/admin`),
+admin routes use `<ProtectedRoute admin>`; login lands each role in its own app.
+
 Mobile is primary: floating dock (hidden on pushed screens like /scholarships/:id), bottom
 sheets, ≥44px targets, safe-area insets. Stay fast on low-end devices: animate only
 transform/opacity, no backdrop blur, honour `prefers-reduced-motion`, route-level splitting.
@@ -123,7 +126,7 @@ Admin login: `npm --workspace scripts run create-admin` (credentials land in `.e
 - [x] pg_cron jobs + upsert key fix (`20261009000002`)
 - [x] Shared logic ported (matching, exams, privacy, snapshot)
 - [x] Edge Functions written (`exams`, `jobs`)
-- [ ] Edge Functions deployed + function secrets (CRON_SECRET, ALLOWED_ORIGINS, AI_*) set
+- [x] Edge Functions deployed; CRON_SECRET + ALLOWED_ORIGINS set (AI_* optional, not set → curated question bank)
 - [x] Seed catalogue (`npm --workspace scripts run seed`; `seed:demo` adds a demo student)
 - [x] RLS/RPC smoke test passing (`npm --workspace scripts run smoke`)
 - [x] Vault secrets for cron (`npm --workspace scripts run setup-cron`)

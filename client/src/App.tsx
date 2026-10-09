@@ -66,7 +66,7 @@ export default function App() {
 
         <Route
           element={
-            <ProtectedRoute>
+            <ProtectedRoute student>
               <AppShell variant="student" />
             </ProtectedRoute>
           }
