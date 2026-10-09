@@ -18,11 +18,11 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'CNAME'],
       manifest: {
-        name: 'BatchMate — Scholarships, matched',
+        name: 'BatchMate — scholarships that fit you',
         short_name: 'BatchMate',
         description: 'Find scholarships you actually qualify for, track applications and prep for aptitude tests.',
-        theme_color: '#09090e',
-        background_color: '#09090e',
+        theme_color: '#f2eee7',
+        background_color: '#f2eee7',
         display: 'standalone',
         start_url: '/dashboard',
         icons: [

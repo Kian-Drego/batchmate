@@ -17,7 +17,7 @@ function ThemedToaster() {
       position="top-center"
       theme={theme}
       offset={16}
-      toastOptions={{ className: '!bg-surface-2 !text-fg !border-line !rounded-2xl !font-sans' }}
+      toastOptions={{ className: '!bg-card !text-ink !border-line !rounded-3xl !font-sans !shadow-lift' }}
     />
   );
 }

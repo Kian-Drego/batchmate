@@ -75,9 +75,9 @@ Root shortcuts: `npm run dev | build | typecheck | seed | smoke | db:push`.
 
 - `src/lib/queries.ts` — every data access as React Query hooks (+ derived `useMatches`,
   `usePerformance`). Add new reads/writes here, not in pages.
-- `src/components/ui/index.tsx` — the UI kit (Button with `iconOnly`, Card, Badge/TierBadge/
-  StatusBadge, Field/Input/Select, ChipGroup, Toggle, Progress, Ring, CountUp, Skeleton,
-  EmptyState, Segmented, Sheet). Reuse before adding.
+- `src/components/ui/index.tsx` — the UI kit (Button w/ `iconOnly`, Surface w/ pastel `tone`,
+  Tag/TierTag/StatusTag, Field/Input/Select/Textarea, ChipGroup/ChipMulti, Switch, Meter, Dial,
+  CountUp, Skeleton, Empty, Notice, Tabs, Sheet, Avatar, Stat). Reuse before adding.
 - `AppShell` = bottom tab bar (mobile) / sidebar (desktop). Exam taking is full-screen (outside
   the shell). Pages are lazy-loaded in `App.tsx`.
 - Motion: `LazyMotion strict` — use `m.*`, never `motion.*`. Prefer CSS transitions for simple
@@ -95,12 +95,27 @@ Root shortcuts: `npm run dev | build | typecheck | seed | smoke | db:push`.
   SQL. Change both together (new migration for the SQL side).
 - New schema changes = new timestamped migration file; never edit an applied migration.
 
-## UI direction
+## UI direction — "soft tactile"
 
-Dark-first, glowy accents, clean and professional; mobile is the primary target. Must stay fast
-on low-end devices: animate only transform/opacity, no backdrop blur or heavy gradients/shadows,
-honour `prefers-reduced-motion`, route-level code splitting, keep initial JS small. Bottom tab bar
-on mobile, sidebar on desktop, ≥44px touch targets, safe-area insets.
+Warm oat-paper surfaces (light) / warm charcoal (dark, never pure black), real ink-black pill
+controls that physically press (`.press`, `shadow-key`), six pastel families (peach, sage, lilac,
+butter, sky, rose) used for *meaning* (scholarship type, status), static paper grain, Bricolage
+Grotesque (display) + Figtree (text). Light/dark follows the OS until the user toggles (`.dark`).
+Avoid the AI-template look: no gradient text, no neon glows, no uppercase tracked eyebrows,
+no emoji as decoration; sentence-case, human copy.
+
+Mobile is primary: floating dock (hidden on pushed screens like /scholarships/:id), bottom
+sheets, ≥44px targets, safe-area insets. Stay fast on low-end devices: animate only
+transform/opacity, no backdrop blur, honour `prefers-reduced-motion`, route-level splitting.
+
+## Admin console (`/admin/*`, role = admin)
+
+Overview, Review (document verification queue — rejections need a note the student sees),
+Decide (application decisions; native applications can only be decided by admins), People
+(student files + role management), Catalogue (CRUD), Insights (admin-only), Sources (scrape
+audit), Activity (`admin_audit`). All admin writes go through security-definer RPCs
+(`admin_review_document`, `admin_decide_application`, `admin_set_role`) or audited triggers.
+Admin login: `npm --workspace scripts run create-admin` (credentials land in `.env`).
 
 ## Status
 
@@ -115,6 +130,8 @@ on mobile, sidebar on desktop, ≥44px touch targets, safe-area insets.
 - [x] Client moved to supabase-js (auth incl. reset/confirm, data layer, storage)
 - [x] Legacy `server/`, Mongo, `render.yaml`, `start-mongodb.cmd` removed; README + CI updated
 - [x] UI overhaul (dark-first, mobile-first, PWA)
+- [x] Admin console + audit trail (`20261010000001`, `20261010000002`)
+- [x] Soft-tactile redesign, light + dark
 - [ ] Supabase Auth URL config (site URL + redirect URLs) applied on the hosted project
 - [ ] GitHub repo variables `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` set
 - [ ] Custom SMTP for auth emails (built-in sender is rate-limited)
@@ -125,6 +142,7 @@ on mobile, sidebar on desktop, ≥44px touch targets, safe-area insets.
 | --- | --- |
 | `npm --workspace scripts run seed` | Upsert the bundled scholarship snapshot |
 | `npm --workspace scripts run seed:demo` | …plus a demo student (`student@example.com`, `DEMO_PASSWORD` or `password123`) |
-| `npm --workspace scripts run make-admin -- <email>` | Promote an account to admin (`--revoke` to demote). No default admin exists. |
+| `npm --workspace scripts run create-admin` | Create/confirm `admin@batchmate.app` with a generated password (`--reset` rotates it) |
+| `npm --workspace scripts run make-admin -- <email>` | Promote an existing account to admin (`--revoke` to demote) |
 | `npm --workspace scripts run setup-cron` | Generate `CRON_SECRET` and store Vault secrets for pg_cron |
 | `npm --workspace scripts run smoke` | End-to-end RLS/RPC/storage checks with a throwaway user |

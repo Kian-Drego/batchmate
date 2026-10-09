@@ -1,24 +1,27 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, CalendarClock, ClipboardList, Sparkles, Wand2 } from 'lucide-react';
+import { ArrowRight, ArrowUpRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useApplications, useMatches } from '../lib/queries';
-import { daysUntil, deadlineLabel, firstName, inr } from '../lib/format';
-import ScholarshipCard from '../components/ScholarshipCard';
-import { Badge, Button, CountUp, EmptyState, Progress, Ring, SectionTitle, Skeleton, StatusBadge, cn } from '../components/ui';
+import { useApplications, useMatches, usePerformance } from '../lib/queries';
+import { daysUntil, firstName, inr } from '../lib/format';
+import { ScholarshipTile } from '../components/ScholarshipCard';
+import { Button, CountUp, Dial, Empty, Meter, SectionHead, Skeleton, StatusTag, Surface, cn } from '../components/ui';
 
 function greeting(): string {
   const h = new Date().getHours();
-  if (h < 5) return 'Up late';
+  if (h < 5) return 'Burning the midnight oil';
   if (h < 12) return 'Good morning';
   if (h < 17) return 'Good afternoon';
   return 'Good evening';
 }
 
+const today = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
+
 export default function DashboardPage() {
   const { profile } = useAuth();
   const matches = useMatches();
   const applications = useApplications();
+  const perf = usePerformance();
 
   const data = matches.data;
   const eligible = useMemo(() => (data ? [...data.highlyEligible, ...data.possiblyEligible] : []), [data]);
@@ -26,11 +29,9 @@ export default function DashboardPage() {
   const closingSoon = useMemo(
     () =>
       (data?.all ?? [])
-        .filter((m) => {
-          const d = daysUntil(m.scholarship.deadline);
-          return d !== null && d >= 0 && d <= 30;
-        })
-        .sort((a, b) => (daysUntil(a.scholarship.deadline) ?? 0) - (daysUntil(b.scholarship.deadline) ?? 0))
+        .map((m) => ({ m, d: daysUntil(m.scholarship.deadline) }))
+        .filter(({ d }) => d !== null && d >= 0 && d <= 30)
+        .sort((a, b) => (a.d ?? 0) - (b.d ?? 0))
         .slice(0, 4),
     [data]
   );
@@ -39,167 +40,173 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div className="mb-5">
-        <p className="text-sm font-medium text-fg-muted">{greeting()},</p>
-        <h1 className="text-[28px] font-extrabold leading-tight tracking-tight sm:text-4xl">
-          {firstName(profile?.name)} <span className="inline-block origin-[70%_70%] animate-pop-in">👋</span>
+      <div className="mb-6 px-1">
+        <p className="text-[13.5px] font-medium text-ink-3">{today}</p>
+        <h1 className="mt-1 text-[38px] font-semibold leading-[1.02] sm:text-[48px]">
+          {greeting()},
+          <br />
+          <span className="text-ink-2">{firstName(profile?.name).toLowerCase()}.</span>
         </h1>
       </div>
 
-      {/* Hero: passport completeness */}
+      {/* Hero */}
       {matches.isLoading ? (
-        <Skeleton className="h-36 w-full rounded-3xl" />
+        <Skeleton className="h-[220px] rounded-5xl" />
       ) : (
-        <Link
-          to="/passport"
-          className={cn(
-            'tap card relative flex items-center gap-5 overflow-hidden rounded-3xl p-5',
-            percent < 100 ? 'border-accent/40 shadow-glow-sm' : 'border-mint/30'
-          )}
-        >
-          <Ring value={percent} size={84} stroke={7} tone={percent === 100 ? 'mint' : 'accent'}>
-            <span className="font-mono text-lg font-bold tabular-nums">
-              <CountUp value={percent} suffix="%" />
+        <Surface tone="peach" grain className="relative overflow-hidden rounded-5xl p-6 sm:p-8">
+          <div className="text-[14px] font-semibold opacity-80">Your matches today</div>
+          <div className="mt-2 flex items-end gap-3">
+            <span className="num text-[76px] font-semibold leading-[0.85] sm:text-[96px]">
+              <CountUp value={eligible.length} />
             </span>
-          </Ring>
-          <div className="min-w-0 flex-1">
-            <div className="eyebrow">Scholarship passport</div>
-            <div className="mt-1 text-[17px] font-bold leading-snug">
-              {percent === 100 ? 'Passport complete. Matches are at full accuracy.' : 'Finish your passport to unlock every match'}
-            </div>
-            {percent < 100 && data && (
-              <div className="mt-1.5 line-clamp-1 text-[13px] text-fg-muted">Missing: {data.completeness.missing.join(', ')}</div>
+            <span className="pb-1.5 font-display text-[22px] font-semibold leading-tight">
+              scholarship{eligible.length === 1 ? '' : 's'}
+              <br />
+              fit you
+            </span>
+          </div>
+          <p className="mt-4 max-w-sm text-[15px] opacity-85">
+            {eligible.length ? (
+              <>
+                Worth up to <b className="num font-semibold">{inr(potential)}</b> combined. {data?.needsInfo.length ? `${data.needsInfo.length} more could unlock with a few details.` : ''}
+              </>
+            ) : (
+              'Fill in your passport and we will start matching straight away.'
+            )}
+          </p>
+          <div className="mt-6 flex flex-wrap gap-2">
+            <Link to="/matches">
+              <Button>
+                See matches <ArrowRight className="h-4 w-4" />
+              </Button>
+            </Link>
+            {percent < 100 && (
+              <Link to="/passport">
+                <Button variant="soft" className="bg-white/60 dark:bg-black/20">
+                  Passport {percent}%
+                </Button>
+              </Link>
             )}
           </div>
-          <ArrowRight className="h-5 w-5 shrink-0 text-fg-faint" />
-        </Link>
+          {/* Decorative pebble */}
+          <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/30 dark:bg-white/5" aria-hidden />
+        </Surface>
       )}
 
-      {/* Stats */}
-      <div className="mt-4 grid grid-cols-3 gap-3">
-        {[
-          { label: 'Matches', value: eligible.length, tone: 'text-accent' },
-          { label: 'Up to', value: inr(potential), tone: 'text-mint', raw: true },
-          { label: 'Active apps', value: activeApps.length, tone: 'text-hot' },
-        ].map((s) => (
-          <div key={s.label} className="card p-3.5">
-            <div className="text-[12px] font-medium text-fg-faint">{s.label}</div>
-            <div className={cn('mt-0.5 truncate font-mono text-xl font-bold tabular-nums', s.tone)}>
-              {matches.isLoading ? '—' : s.raw ? s.value : <CountUp value={s.value as number} />}
-            </div>
+      {/* Quick tiles */}
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        <Link to="/applications" className="press rounded-4xl border border-line/70 bg-card p-5 shadow-soft hover:shadow-lift">
+          <div className="text-[13px] font-medium text-ink-3">Applying</div>
+          <div className="num mt-1 text-[34px] font-semibold leading-none">{activeApps.length}</div>
+          <div className="mt-2 text-[12.5px] text-ink-2">{activeApps.length === 1 ? 'application' : 'applications'} in motion</div>
+        </Link>
+        <Link to="/exams" className="press flex items-center gap-3 rounded-4xl border border-line/70 bg-card p-5 shadow-soft hover:shadow-lift">
+          <Dial value={perf.data.readinessScore} size={58} stroke={5} color="rgb(var(--accent))">
+            <span className="num text-[16px] font-semibold">{perf.data.readinessScore}</span>
+          </Dial>
+          <div className="min-w-0">
+            <div className="text-[13px] font-medium text-ink-3">Exam ready</div>
+            <div className="text-[12.5px] text-ink-2">{perf.data.totalAttempts ? `${perf.data.totalAttempts} mocks taken` : 'Try a mock'}</div>
           </div>
-        ))}
+        </Link>
       </div>
 
-      {/* Top picks carousel (CSS scroll-snap — zero JS) */}
-      <SectionTitle
-        action={
-          <Link to="/matches" className="inline-flex items-center gap-1 text-[13px] font-semibold text-accent">
-            See all <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        }
-      >
-        <span className="inline-flex items-center gap-2">
-          <Sparkles className="h-[18px] w-[18px] text-accent" /> Top picks for you
-        </span>
-      </SectionTitle>
-      {matches.isLoading ? (
-        <div className="flex gap-3 overflow-hidden">
-          {[0, 1].map((i) => (
-            <Skeleton key={i} className="h-44 w-[78%] shrink-0 rounded-2xl sm:w-72" />
-          ))}
-        </div>
-      ) : eligible.length === 0 ? (
-        <EmptyState
-          icon={Wand2}
-          title="No matches yet"
-          description="Add your degree, state, category and income bracket — we'll find what you qualify for."
-          action={
-            <Link to="/passport">
-              <Button>Complete passport</Button>
-            </Link>
-          }
-        />
-      ) : (
-        <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
-          {eligible.slice(0, 8).map((m) => (
-            <div key={m.scholarshipId} className="w-[78%] shrink-0 snap-start sm:w-72">
-              <ScholarshipCard scholarship={m.scholarship} tier={m.tier} fitScore={m.fitScore} compact />
-            </div>
-          ))}
+      {/* Shelf */}
+      {eligible.length > 0 && (
+        <>
+          <SectionHead
+            action={
+              <Link to="/matches" className="text-[13.5px] font-semibold text-ink-2 hover:text-ink">
+                All matches
+              </Link>
+            }
+          >
+            Picked for you
+          </SectionHead>
+          <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
+            {eligible.slice(0, 8).map((m) => (
+              <div key={m.scholarshipId} className="w-[74%] shrink-0 snap-start sm:w-[280px]">
+                <ScholarshipTile scholarship={m.scholarship} fitScore={m.fitScore} />
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+      {!matches.isLoading && eligible.length === 0 && (
+        <div className="mt-6">
+          <Empty
+            title="Nothing matched yet"
+            description="Add your degree, state, category and income bracket. Matches update the moment you save."
+            action={
+              <Link to="/passport">
+                <Button>Complete passport</Button>
+              </Link>
+            }
+          />
         </div>
       )}
 
       <div className="grid grid-cols-1 gap-x-6 lg:grid-cols-2 [&>*]:min-w-0">
-        {/* Closing soon */}
         <section>
-          <SectionTitle>
-            <span className="inline-flex items-center gap-2">
-              <CalendarClock className="h-[18px] w-[18px] text-hot" /> Closing soon
-            </span>
-          </SectionTitle>
+          <SectionHead>Closing soon</SectionHead>
           {closingSoon.length === 0 ? (
-            <p className="card p-4 text-sm text-fg-muted">Nothing closing in the next 30 days. You&apos;re chilling.</p>
+            <Surface className="p-5 text-[14.5px] text-ink-2">Nothing due in the next 30 days. Breathe.</Surface>
           ) : (
-            <ul className="card divide-y divide-line">
-              {closingSoon.map((m) => {
-                const dl = deadlineLabel(m.scholarship.deadline);
-                return (
-                  <li key={m.scholarshipId}>
-                    <Link to={`/scholarships/${m.scholarshipId}`} className="flex items-center gap-3 px-4 py-3.5 transition-colors hover:bg-surface-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-semibold">{m.scholarship.title}</div>
-                        <div className="truncate text-[12px] text-fg-faint">{inr(m.scholarship.amount)} · {m.scholarship.provider}</div>
-                      </div>
-                      <Badge tone={dl.tone === 'urgent' ? 'hot' : 'warn'}>{dl.text}</Badge>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+            <Surface className="divide-y divide-dashed divide-line overflow-hidden">
+              {closingSoon.map(({ m, d }) => (
+                <Link key={m.scholarshipId} to={`/scholarships/${m.scholarshipId}`} className="flex items-center gap-4 px-5 py-4 transition-colors hover:bg-sunken/60">
+                  <div className={cn('flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-2xl', d! <= 7 ? 'bg-peach text-peach-ink' : 'bg-sunken text-ink-2')}>
+                    <span className="num text-[18px] font-semibold leading-none">{d}</span>
+                    <span className="text-[10px] font-semibold">days</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[14.5px] font-semibold">{m.scholarship.title}</div>
+                    <div className="truncate text-[12.5px] text-ink-3">
+                      {inr(m.scholarship.amount)} · {m.scholarship.provider}
+                    </div>
+                  </div>
+                  <ArrowUpRight className="h-4 w-4 shrink-0 text-ink-3" />
+                </Link>
+              ))}
+            </Surface>
           )}
         </section>
 
-        {/* Applications */}
         <section>
-          <SectionTitle
+          <SectionHead
             action={
-              <Link to="/applications" className="inline-flex items-center gap-1 text-[13px] font-semibold text-accent">
-                Tracker <ArrowRight className="h-3.5 w-3.5" />
+              <Link to="/applications" className="text-[13.5px] font-semibold text-ink-2 hover:text-ink">
+                Tracker
               </Link>
             }
           >
-            <span className="inline-flex items-center gap-2">
-              <ClipboardList className="h-[18px] w-[18px] text-mint" /> In progress
-            </span>
-          </SectionTitle>
+            In motion
+          </SectionHead>
           {applications.isLoading ? (
-            <Skeleton className="h-28 w-full rounded-2xl" />
+            <Skeleton className="h-28 rounded-4xl" />
           ) : activeApps.length === 0 ? (
-            <p className="card p-4 text-sm text-fg-muted">No active applications. Open a match and tap “Start applying”.</p>
+            <Surface className="p-5 text-[14.5px] text-ink-2">No applications yet. Open any match and tap “Start applying”.</Surface>
           ) : (
-            <ul className="space-y-2.5">
+            <div className="space-y-3">
               {activeApps.slice(0, 3).map((a) => {
                 const done = a.checklist.filter((c) => c.done).length;
                 const pct = a.checklist.length ? (done / a.checklist.length) * 100 : 0;
                 return (
-                  <li key={a.id}>
-                    <Link to={`/scholarships/${a.scholarship_id}`} className="tap card block p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="truncate text-sm font-semibold">{a.scholarship.title}</div>
-                        <StatusBadge status={a.status} />
-                      </div>
-                      <div className="mt-3 flex items-center gap-3">
-                        <Progress value={pct} tone={pct === 100 ? 'mint' : 'accent'} />
-                        <span className="shrink-0 font-mono text-[12px] tabular-nums text-fg-faint">
-                          {done}/{a.checklist.length}
-                        </span>
-                      </div>
-                    </Link>
-                  </li>
+                  <Link key={a.id} to={`/scholarships/${a.scholarship_id}`} className="press block rounded-4xl border border-line/70 bg-card p-5 shadow-soft hover:shadow-lift">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="truncate text-[15px] font-semibold">{a.scholarship.title}</div>
+                      <StatusTag status={a.status} />
+                    </div>
+                    <div className="mt-4 flex items-center gap-3">
+                      <Meter value={pct} tone={pct === 100 ? 'sage' : 'ink'} />
+                      <span className="num shrink-0 text-[13px] text-ink-3">
+                        {done}/{a.checklist.length}
+                      </span>
+                    </div>
+                  </Link>
                 );
               })}
-            </ul>
+            </div>
           )}
         </section>
       </div>

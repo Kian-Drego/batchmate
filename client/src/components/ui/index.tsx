@@ -1,6 +1,8 @@
 /**
- * BatchMate UI kit. Dark-first tokens (src/index.css), static glows, and
- * transform/opacity-only motion so it stays smooth on low-end phones.
+ * BatchMate UI kit — "soft tactile".
+ * Warm paper surfaces, ink pill controls that physically press, pastel tints
+ * for meaning. Motion is transform/opacity only so it stays smooth on low-end
+ * phones; every animation respects prefers-reduced-motion.
  */
 import {
   forwardRef,
@@ -10,6 +12,8 @@ import {
   useState,
   type ButtonHTMLAttributes,
   type ComponentType,
+  type CSSProperties,
+  type HTMLAttributes,
   type InputHTMLAttributes,
   type ReactNode,
   type SelectHTMLAttributes,
@@ -19,43 +23,71 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, m, useReducedMotion, type PanInfo } from 'framer-motion';
 import clsx from 'clsx';
 import { ChevronDown, Loader2, X } from 'lucide-react';
-import type { ApplicationStatus, MatchTier } from '../../lib/constants';
+import type { ApplicationStatus, MatchTier, ScholarshipType } from '../../lib/constants';
+import { initials } from '../../lib/format';
 
 export const cn = clsx;
+
+// ---------------------------------------------------------------------------
+// Tones
+// ---------------------------------------------------------------------------
+
+export type Tone = 'neutral' | 'ink' | 'peach' | 'sage' | 'lilac' | 'butter' | 'sky' | 'rose';
+
+const TINT: Record<Tone, string> = {
+  neutral: 'bg-sunken text-ink-2',
+  ink: 'bg-primary text-primary-fg',
+  peach: 'bg-peach text-peach-ink',
+  sage: 'bg-sage text-sage-ink',
+  lilac: 'bg-lilac text-lilac-ink',
+  butter: 'bg-butter text-butter-ink',
+  sky: 'bg-sky text-sky-ink',
+  rose: 'bg-rose text-rose-ink',
+};
+
+export const tint = (tone: Tone) => TINT[tone];
+
+const TYPE_TONE: Record<ScholarshipType, Tone> = {
+  Government: 'sky',
+  'State Government': 'sage',
+  'Corporate CSR': 'peach',
+  Foundation: 'lilac',
+  'Merit-Based': 'butter',
+  'Need-Based': 'rose',
+  Minority: 'lilac',
+};
+
+export const typeTone = (type: string): Tone => TYPE_TONE[type as ScholarshipType] ?? 'neutral';
 
 // ---------------------------------------------------------------------------
 // Buttons
 // ---------------------------------------------------------------------------
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'mint';
+type ButtonVariant = 'primary' | 'soft' | 'ghost' | 'danger' | 'accent';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
-const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
-  primary: 'bg-accent text-accent-fg shadow-glow-sm hover:shadow-glow',
-  secondary: 'bg-surface-2 text-fg border border-line hover:border-line-strong hover:bg-surface-3',
-  ghost: 'text-fg-muted hover:text-fg hover:bg-surface-2',
-  danger: 'bg-danger-soft text-danger border border-danger/30 hover:border-danger/60',
-  mint: 'bg-mint text-[#04140e] shadow-glow-mint',
+const VARIANT: Record<ButtonVariant, string> = {
+  primary: 'bg-primary text-primary-fg shadow-key hover:brightness-110 active:shadow-press',
+  soft: 'bg-card text-ink border border-line shadow-soft hover:border-ink-3/40 active:shadow-press',
+  ghost: 'text-ink-2 hover:text-ink hover:bg-sunken',
+  danger: 'bg-rose text-rose-ink hover:brightness-[0.97] active:shadow-press',
+  accent: 'bg-accent text-white shadow-key hover:brightness-105 active:shadow-press',
 };
 
-const ICON_SIZES: Record<ButtonSize, string> = {
-  sm: 'h-9 w-9 rounded-xl',
-  md: 'h-11 w-11 rounded-xl',
-  lg: 'h-[52px] w-[52px] rounded-2xl',
+const SIZE: Record<ButtonSize, string> = {
+  sm: 'h-9 px-4 text-[13px] gap-1.5',
+  md: 'h-11 px-5 text-[14px] gap-2',
+  lg: 'h-[54px] px-7 text-[15px] gap-2',
 };
 
-const BUTTON_SIZES: Record<ButtonSize, string> = {
-  sm: 'h-9 px-3.5 text-[13px] gap-1.5 rounded-xl',
-  md: 'h-11 px-4 text-sm gap-2 rounded-xl',
-  lg: 'h-[52px] px-6 text-[15px] gap-2 rounded-2xl',
-};
+const ICON_SIZE: Record<ButtonSize, string> = { sm: 'h-9 w-9', md: 'h-11 w-11', lg: 'h-[54px] w-[54px]' };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
   loading?: boolean;
   block?: boolean;
-  /** Square, icon-only button (no horizontal padding). */
+  /** Square, icon-only button. */
   iconOnly?: boolean;
 }
 
@@ -69,33 +101,28 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       type={type}
       disabled={disabled || loading}
       className={cn(
-        'tap inline-flex select-none items-center justify-center font-semibold transition-[box-shadow,background-color,border-color,color,transform] duration-150 disabled:pointer-events-none disabled:opacity-50',
-        BUTTON_VARIANTS[variant],
-        iconOnly ? ICON_SIZES[size] : BUTTON_SIZES[size],
+        'press inline-flex select-none items-center justify-center rounded-full font-semibold disabled:pointer-events-none disabled:opacity-45',
+        VARIANT[variant],
+        iconOnly ? ICON_SIZE[size] : SIZE[size],
         block && 'w-full',
         className
       )}
       {...rest}
     >
-      {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+      {loading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null}
       {children}
     </button>
   );
 });
 
-export function IconButton({
-  label,
-  className,
-  children,
-  ...rest
-}: ButtonHTMLAttributes<HTMLButtonElement> & { label: string }) {
+export function IconButton({ label, className, children, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { label: string }) {
   return (
     <button
       type="button"
       aria-label={label}
       title={label}
       className={cn(
-        'tap inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg disabled:opacity-40',
+        'press inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink-2 hover:bg-sunken hover:text-ink disabled:opacity-40',
         className
       )}
       {...rest}
@@ -106,188 +133,157 @@ export function IconButton({
 }
 
 // ---------------------------------------------------------------------------
-// Surfaces & typography
+// Surfaces & type
 // ---------------------------------------------------------------------------
 
-export function Card({
+export function Surface({
+  tone,
+  grain,
   className,
   children,
-  glow,
-  as: As = 'div',
   ...rest
-}: { className?: string; children: ReactNode; glow?: boolean; as?: 'div' | 'section' | 'article' | 'li' } & Record<string, unknown>) {
+}: HTMLAttributes<HTMLDivElement> & { tone?: Exclude<Tone, 'neutral' | 'ink'>; grain?: boolean }) {
   return (
-    <As className={cn('card', glow && 'border-accent/40 shadow-glow-sm', className)} {...rest}>
+    <div
+      className={cn(
+        'rounded-4xl shadow-soft',
+        tone ? cn(TINT[tone], 'border border-black/[0.04] dark:border-white/[0.04]') : 'border border-line/70 bg-card',
+        grain && 'grainy',
+        className
+      )}
+      {...rest}
+    >
       {children}
-    </As>
+    </div>
   );
 }
 
-export function PageHeader({
-  eyebrow,
-  title,
-  description,
-  action,
-}: {
-  eyebrow?: string;
-  title: ReactNode;
-  description?: ReactNode;
-  action?: ReactNode;
-}) {
+export function PageTitle({ kicker, title, sub, action }: { kicker?: ReactNode; title: ReactNode; sub?: ReactNode; action?: ReactNode }) {
   return (
-    <header className="mb-5 flex items-end justify-between gap-4">
+    <header className="mb-6 flex items-end justify-between gap-4">
       <div className="min-w-0">
-        {eyebrow && <div className="eyebrow mb-1.5">{eyebrow}</div>}
-        <h1 className="text-[26px] font-extrabold leading-tight tracking-tight sm:text-3xl">{title}</h1>
-        {description && <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-fg-muted">{description}</p>}
+        {kicker && <div className="mb-1 text-[13px] font-medium text-ink-3">{kicker}</div>}
+        <h1 className="text-[34px] font-semibold leading-[1.02] sm:text-[44px]">{title}</h1>
+        {sub && <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-ink-2">{sub}</p>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </header>
   );
 }
 
-export function SectionTitle({ children, action }: { children: ReactNode; action?: ReactNode }) {
+export function SectionHead({ children, action, className }: { children: ReactNode; action?: ReactNode; className?: string }) {
   return (
-    <div className="mb-3 mt-7 flex items-center justify-between gap-3">
-      <h2 className="text-[17px] font-bold tracking-tight">{children}</h2>
+    <div className={cn('mb-3 mt-9 flex items-baseline justify-between gap-3 px-1', className)}>
+      <h2 className="text-[21px] font-semibold">{children}</h2>
       {action}
     </div>
   );
 }
 
-export function Stat({ label, value, hint, tone }: { label: string; value: ReactNode; hint?: ReactNode; tone?: 'accent' | 'mint' | 'warn' | 'hot' }) {
+export function Stat({ label, value, tone, hint }: { label: string; value: ReactNode; tone?: Exclude<Tone, 'neutral' | 'ink'>; hint?: ReactNode }) {
   return (
-    <div className="card p-4">
-      <div className="text-[12px] font-medium text-fg-faint">{label}</div>
-      <div
-        className={cn(
-          'mt-1 font-mono text-2xl font-bold tabular-nums tracking-tight',
-          tone === 'accent' && 'text-accent',
-          tone === 'mint' && 'text-mint',
-          tone === 'warn' && 'text-warn',
-          tone === 'hot' && 'text-hot'
-        )}
-      >
-        {value}
-      </div>
-      {hint && <div className="mt-0.5 text-[12px] text-fg-muted">{hint}</div>}
-    </div>
+    <Surface tone={tone} className="p-4">
+      <div className={cn('text-[13px] font-medium', tone ? 'opacity-80' : 'text-ink-3')}>{label}</div>
+      <div className="num mt-1 text-[28px] font-semibold leading-none">{value}</div>
+      {hint && <div className={cn('mt-1.5 text-[12px]', tone ? 'opacity-75' : 'text-ink-3')}>{hint}</div>}
+    </Surface>
+  );
+}
+
+export function Avatar({ name, src, size = 40, className }: { name?: string | null; src?: string | null; size?: number; className?: string }) {
+  return (
+    <span
+      className={cn('inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-peach font-display font-semibold text-peach-ink', className)}
+      style={{ width: size, height: size, fontSize: size * 0.36 }}
+    >
+      {src ? <img src={src} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" /> : initials(name)}
+    </span>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Badges
+// Tags
 // ---------------------------------------------------------------------------
 
-export type Tone = 'neutral' | 'accent' | 'mint' | 'warn' | 'danger' | 'hot';
-
-const BADGE_TONES: Record<Tone, string> = {
-  neutral: 'bg-surface-2 text-fg-muted border-line',
-  accent: 'bg-accent-soft text-accent border-accent/30',
-  mint: 'bg-mint-soft text-mint border-mint/30',
-  warn: 'bg-warn-soft text-warn border-warn/30',
-  danger: 'bg-danger-soft text-danger border-danger/30',
-  hot: 'bg-hot-soft text-hot border-hot/30',
-};
-
-export function Badge({ tone = 'neutral', className, children }: { tone?: Tone; className?: string; children: ReactNode }) {
+export function Tag({ tone = 'neutral', className, children }: { tone?: Tone; className?: string; children: ReactNode }) {
   return (
-    <span
-      className={cn(
-        'inline-flex h-6 items-center gap-1 whitespace-nowrap rounded-full border px-2.5 text-[12px] font-semibold',
-        BADGE_TONES[tone],
-        className
-      )}
-    >
+    <span className={cn('inline-flex h-7 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-[12.5px] font-semibold', TINT[tone], className)}>
       {children}
     </span>
   );
 }
 
-export const TIER_META: Record<MatchTier, { tone: Tone; short: string }> = {
-  'Highly Eligible': { tone: 'mint', short: 'Strong match' },
-  'Possibly Eligible': { tone: 'accent', short: 'Good match' },
-  'Needs Additional Information': { tone: 'warn', short: 'Needs info' },
+export const TIER_META: Record<MatchTier, { tone: Tone; label: string }> = {
+  'Highly Eligible': { tone: 'sage', label: 'Strong fit' },
+  'Possibly Eligible': { tone: 'sky', label: 'Good fit' },
+  'Needs Additional Information': { tone: 'butter', label: 'Needs info' },
 };
 
-export function TierBadge({ tier }: { tier: MatchTier }) {
-  return <Badge tone={TIER_META[tier].tone}>{TIER_META[tier].short}</Badge>;
+export function TierTag({ tier }: { tier: MatchTier }) {
+  return <Tag tone={TIER_META[tier].tone}>{TIER_META[tier].label}</Tag>;
 }
 
 const STATUS_TONE: Record<ApplicationStatus, Tone> = {
   'Not Started': 'neutral',
-  'In Progress': 'accent',
-  Submitted: 'hot',
-  'Verification Pending': 'warn',
-  Awarded: 'mint',
-  Rejected: 'danger',
+  'In Progress': 'sky',
+  Submitted: 'lilac',
+  'Verification Pending': 'butter',
+  Awarded: 'sage',
+  Rejected: 'rose',
 };
 
-export function StatusBadge({ status }: { status: ApplicationStatus }) {
-  return <Badge tone={STATUS_TONE[status]}>{status}</Badge>;
+export function StatusTag({ status }: { status: ApplicationStatus }) {
+  return (
+    <Tag tone={STATUS_TONE[status]}>
+      <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden />
+      {status}
+    </Tag>
+  );
 }
 
 // ---------------------------------------------------------------------------
 // Form controls
 // ---------------------------------------------------------------------------
 
-export function Field({
-  label,
-  hint,
-  error,
-  children,
-  htmlFor,
-}: {
-  label: string;
-  hint?: ReactNode;
-  error?: string | null;
-  children: ReactNode;
-  htmlFor?: string;
-}) {
+export function Field({ label, hint, error, children, htmlFor }: { label: string; hint?: ReactNode; error?: string | null; children: ReactNode; htmlFor?: string }) {
   return (
-    <div className="space-y-1.5">
-      <label htmlFor={htmlFor} className="block text-[13px] font-semibold text-fg-muted">
+    <div className="space-y-2">
+      <label htmlFor={htmlFor} className="block pl-1 text-[13px] font-semibold text-ink-2">
         {label}
       </label>
       {children}
-      {error ? (
-        <p className="text-[12px] font-medium text-danger">{error}</p>
-      ) : hint ? (
-        <p className="text-[12px] text-fg-faint">{hint}</p>
-      ) : null}
+      {error ? <p className="pl-1 text-[12.5px] font-medium text-rose-ink">{error}</p> : hint ? <p className="pl-1 text-[12.5px] text-ink-3">{hint}</p> : null}
     </div>
   );
 }
 
 const CONTROL =
-  'h-12 w-full rounded-xl border border-line bg-surface-2 px-3.5 text-[16px] text-fg placeholder:text-fg-faint transition-[border-color,box-shadow] duration-150 focus:border-accent focus:outline-none focus:ring-4 focus:ring-accent/20';
+  'h-[52px] w-full rounded-2xl border border-transparent bg-sunken px-4 text-[16px] text-ink shadow-well placeholder:text-ink-3 transition-[border-color,background-color,box-shadow] duration-200 focus:border-ink/20 focus:bg-card focus:shadow-soft focus:outline-none';
 
-export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input(
-  { className, ...rest },
-  ref
-) {
+export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(function Input({ className, ...rest }, ref) {
   return <input ref={ref} className={cn(CONTROL, className)} {...rest} />;
 });
 
-export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(function Textarea(
-  { className, ...rest },
-  ref
-) {
-  return <textarea ref={ref} className={cn(CONTROL, 'h-auto min-h-[96px] py-3', className)} {...rest} />;
+export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(function Textarea({ className, ...rest }, ref) {
+  return <textarea ref={ref} className={cn(CONTROL, 'h-auto min-h-[104px] py-3.5 leading-relaxed', className)} {...rest} />;
 });
 
 export function Select({ className, children, ...rest }: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <div className="relative">
-      <select className={cn(CONTROL, 'appearance-none pr-10', className)} {...rest}>
+      <select className={cn(CONTROL, 'appearance-none pr-11', className)} {...rest}>
         {children}
       </select>
-      <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-faint" aria-hidden />
+      <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-3" aria-hidden />
     </div>
   );
 }
 
-/** Single-choice chips — faster than a <select> for short option lists on mobile. */
+const CHIP_BASE = 'press h-10 rounded-full px-4 text-[13.5px] font-semibold';
+const CHIP_ON = 'bg-primary text-primary-fg shadow-key';
+const CHIP_OFF = 'bg-card text-ink-2 border border-line shadow-soft hover:text-ink';
+
+/** Single-choice chips — faster than a <select> for short lists on mobile. */
 export function ChipGroup<T extends string>({
   options,
   value,
@@ -304,21 +300,9 @@ export function ChipGroup<T extends string>({
   return (
     <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-2">
       {options.map((o) => {
-        const active = value === o;
+        const on = value === o;
         return (
-          <button
-            key={o}
-            type="button"
-            role="radio"
-            aria-checked={active}
-            onClick={() => onChange(active ? null : o)}
-            className={cn(
-              'tap h-10 rounded-full border px-4 text-[13px] font-semibold transition-colors duration-150',
-              active
-                ? 'border-accent bg-accent-soft text-accent shadow-glow-sm'
-                : 'border-line bg-surface-2 text-fg-muted hover:border-line-strong hover:text-fg'
-            )}
-          >
+          <button key={o} type="button" role="radio" aria-checked={on} onClick={() => onChange(on ? null : o)} className={cn(CHIP_BASE, on ? CHIP_ON : CHIP_OFF)}>
             {labels?.[o] ?? o}
           </button>
         );
@@ -327,32 +311,54 @@ export function ChipGroup<T extends string>({
   );
 }
 
-export function Toggle({ checked, onChange, label, description }: { checked: boolean; onChange: (v: boolean) => void; label: string; description?: string }) {
+/** Multi-choice chips. */
+export function ChipMulti<T extends string>({ options, value, onChange, label }: { options: readonly T[]; value: T[]; onChange: (v: T[]) => void; label: string }) {
+  return (
+    <div role="group" aria-label={label} className="flex flex-wrap gap-2">
+      {options.map((o) => {
+        const on = value.includes(o);
+        return (
+          <button
+            key={o}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onChange(on ? value.filter((v) => v !== o) : [...value, o])}
+            className={cn(CHIP_BASE, on ? CHIP_ON : CHIP_OFF)}
+          >
+            {o}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export function Switch({ checked, onChange, label, description }: { checked: boolean; onChange: (v: boolean) => void; label: string; description?: string }) {
   const id = useId();
   return (
-    <label htmlFor={id} className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-line bg-surface-2 px-4 py-3">
+    <label htmlFor={id} className="flex cursor-pointer items-center justify-between gap-4 rounded-3xl bg-sunken px-4 py-3.5 shadow-well">
       <span>
-        <span className="block text-sm font-semibold">{label}</span>
-        {description && <span className="mt-0.5 block text-[12px] text-fg-muted">{description}</span>}
+        <span className="block text-[14.5px] font-semibold">{label}</span>
+        {description && <span className="mt-0.5 block text-[12.5px] text-ink-3">{description}</span>}
       </span>
       <span className="relative inline-flex shrink-0">
         <input id={id} type="checkbox" className="peer sr-only" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-        <span className="h-7 w-12 rounded-full bg-surface-3 transition-colors duration-200 peer-checked:bg-accent peer-focus-visible:ring-4 peer-focus-visible:ring-accent/30" />
-        <span className="absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 peer-checked:translate-x-5" />
+        <span className="h-8 w-[52px] rounded-full bg-line shadow-well transition-colors duration-300 peer-checked:bg-primary peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-accent" />
+        <span className="absolute left-1 top-1 h-6 w-6 rounded-full bg-card shadow-soft transition-transform duration-300 ease-spring peer-checked:translate-x-5" />
       </span>
     </label>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Progress
+// Meters
 // ---------------------------------------------------------------------------
 
-export function Progress({ value, tone = 'accent', className }: { value: number; tone?: 'accent' | 'mint' | 'warn'; className?: string }) {
+export function Meter({ value, className, tone = 'ink' }: { value: number; className?: string; tone?: 'ink' | 'sage' | 'butter' | 'accent' }) {
   const pct = Math.max(0, Math.min(100, value));
   return (
     <div
-      className={cn('h-2 w-full overflow-hidden rounded-full bg-surface-3', className)}
+      className={cn('h-2.5 w-full overflow-hidden rounded-full bg-sunken shadow-well', className)}
       role="progressbar"
       aria-valuenow={Math.round(pct)}
       aria-valuemin={0}
@@ -361,9 +367,10 @@ export function Progress({ value, tone = 'accent', className }: { value: number;
       <div
         className={cn(
           'h-full w-full origin-left rounded-full transition-transform duration-700 ease-out',
-          tone === 'accent' && 'bg-accent',
-          tone === 'mint' && 'bg-mint',
-          tone === 'warn' && 'bg-warn'
+          tone === 'ink' && 'bg-primary',
+          tone === 'sage' && 'bg-sage-ink',
+          tone === 'butter' && 'bg-butter-ink',
+          tone === 'accent' && 'bg-accent'
         )}
         style={{ transform: `scaleX(${pct / 100})` }}
       />
@@ -371,20 +378,8 @@ export function Progress({ value, tone = 'accent', className }: { value: number;
   );
 }
 
-/** Circular progress. Animates stroke-dashoffset once on mount. */
-export function Ring({
-  value,
-  size = 64,
-  stroke = 6,
-  tone = 'accent',
-  children,
-}: {
-  value: number;
-  size?: number;
-  stroke?: number;
-  tone?: 'accent' | 'mint' | 'warn' | 'hot';
-  children?: ReactNode;
-}) {
+/** Circular dial; sweeps once on mount. */
+export function Dial({ value, size = 64, stroke = 6, color = 'rgb(var(--ink))', track = 'rgb(var(--ink) / 0.1)', children }: { value: number; size?: number; stroke?: number; color?: string; track?: string; children?: ReactNode }) {
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const [shown, setShown] = useState(0);
@@ -392,11 +387,10 @@ export function Ring({
     const id = requestAnimationFrame(() => setShown(Math.max(0, Math.min(100, value))));
     return () => cancelAnimationFrame(id);
   }, [value]);
-  const color = { accent: 'rgb(var(--accent))', mint: 'rgb(var(--mint))', warn: 'rgb(var(--warn))', hot: 'rgb(var(--hot))' }[tone];
   return (
     <div className="relative inline-flex shrink-0 items-center justify-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90" aria-hidden>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgb(var(--surface-3))" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={track} strokeWidth={stroke} />
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -407,7 +401,7 @@ export function Ring({
           strokeLinecap="round"
           strokeDasharray={c}
           strokeDashoffset={c * (1 - shown / 100)}
-          style={{ transition: 'stroke-dashoffset 900ms cubic-bezier(0.22, 1, 0.36, 1)' }}
+          style={{ transition: 'stroke-dashoffset 1000ms cubic-bezier(0.22, 1, 0.36, 1)' }}
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">{children}</div>
@@ -415,7 +409,6 @@ export function Ring({
   );
 }
 
-/** Animated number (rAF, ~600ms). Respects reduced motion. */
 export function CountUp({ value, suffix = '' }: { value: number; suffix?: string }) {
   const reduce = useReducedMotion();
   const [n, setN] = useState(reduce ? value : 0);
@@ -429,9 +422,8 @@ export function CountUp({ value, suffix = '' }: { value: number; suffix?: string
     const begin = from.current;
     let raf = 0;
     const step = (t: number) => {
-      const p = Math.min(1, (t - start) / 600);
-      const eased = 1 - Math.pow(1 - p, 3);
-      setN(Math.round(begin + (value - begin) * eased));
+      const p = Math.min(1, (t - start) / 700);
+      setN(Math.round(begin + (value - begin) * (1 - Math.pow(1 - p, 3))));
       if (p < 1) raf = requestAnimationFrame(step);
       else from.current = value;
     };
@@ -447,114 +439,88 @@ export function CountUp({ value, suffix = '' }: { value: number; suffix?: string
 }
 
 // ---------------------------------------------------------------------------
-// Feedback states
+// States
 // ---------------------------------------------------------------------------
 
 export function Spinner({ className }: { className?: string }) {
-  return <Loader2 className={cn('h-5 w-5 animate-spin text-accent', className)} aria-label="Loading" />;
+  return <Loader2 className={cn('h-5 w-5 animate-spin text-ink-3', className)} aria-label="Loading" />;
 }
 
 export function Skeleton({ className }: { className?: string }) {
-  return (
-    <div className={cn('relative overflow-hidden rounded-xl bg-surface-2', className)} aria-hidden>
-      <div className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/[0.04] to-transparent" />
-    </div>
-  );
+  return <div className={cn('animate-breathe rounded-3xl bg-sunken', className)} aria-hidden />;
 }
 
 export function ListSkeleton({ rows = 4 }: { rows?: number }) {
   return (
     <div className="space-y-3" aria-busy="true" aria-label="Loading">
       {Array.from({ length: rows }, (_, i) => (
-        <Skeleton key={i} className="h-24 w-full rounded-2xl" />
+        <Skeleton key={i} className="h-28 w-full rounded-4xl" />
       ))}
     </div>
   );
 }
 
-export function EmptyState({
-  icon: Icon,
-  title,
-  description,
-  action,
-}: {
-  icon: ComponentType<{ className?: string }>;
-  title: string;
-  description?: ReactNode;
-  action?: ReactNode;
-}) {
+/** Small pastel pebble composition — a calm, non-generic empty-state mark. */
+function Pebbles() {
   return (
-    <div className="card flex flex-col items-center px-6 py-12 text-center">
-      <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-soft text-accent shadow-glow-sm">
-        <Icon className="h-6 w-6" />
-      </span>
-      <h3 className="text-base font-bold">{title}</h3>
-      {description && <p className="mt-1.5 max-w-sm text-sm text-fg-muted">{description}</p>}
-      {action && <div className="mt-5">{action}</div>}
-    </div>
+    <svg width="96" height="64" viewBox="0 0 96 64" aria-hidden>
+      <ellipse cx="34" cy="38" rx="26" ry="20" fill="rgb(var(--peach))" />
+      <ellipse cx="62" cy="30" rx="22" ry="18" fill="rgb(var(--lilac))" />
+      <circle cx="74" cy="48" r="10" fill="rgb(var(--sage))" />
+      <circle cx="20" cy="18" r="5" fill="rgb(var(--accent))" />
+    </svg>
   );
 }
 
-export function Alert({ tone = 'danger', children }: { tone?: 'danger' | 'warn' | 'mint' | 'accent'; children: ReactNode }) {
+export function Empty({ title, description, action, icon: Icon }: { title: string; description?: ReactNode; action?: ReactNode; icon?: ComponentType<{ className?: string }> }) {
   return (
-    <div
-      role="alert"
-      className={cn(
-        'rounded-xl border px-4 py-3 text-sm',
-        tone === 'danger' && 'border-danger/30 bg-danger-soft text-danger',
-        tone === 'warn' && 'border-warn/30 bg-warn-soft text-warn',
-        tone === 'mint' && 'border-mint/30 bg-mint-soft text-mint',
-        tone === 'accent' && 'border-accent/30 bg-accent-soft text-accent'
+    <Surface className="flex flex-col items-center px-6 py-12 text-center">
+      {Icon ? (
+        <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-sunken text-ink-2 shadow-well">
+          <Icon className="h-6 w-6" />
+        </span>
+      ) : (
+        <div className="mb-4">
+          <Pebbles />
+        </div>
       )}
-    >
+      <h3 className="text-[19px] font-semibold">{title}</h3>
+      {description && <p className="mt-1.5 max-w-sm text-[14px] leading-relaxed text-ink-2">{description}</p>}
+      {action && <div className="mt-5">{action}</div>}
+    </Surface>
+  );
+}
+
+export function Notice({ tone = 'butter', children, className }: { tone?: Exclude<Tone, 'neutral' | 'ink'>; children: ReactNode; className?: string }) {
+  return (
+    <div role="status" className={cn('rounded-3xl px-4 py-3.5 text-[14px] leading-relaxed', TINT[tone], className)}>
       {children}
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Segmented control with a sliding pill (shared layout animation)
+// Tabs: a sunken track with a raised, sliding key
 // ---------------------------------------------------------------------------
 
-export function Segmented<T extends string>({
-  options,
-  value,
-  onChange,
-  id,
-}: {
-  options: { value: T; label: string; count?: number }[];
-  value: T;
-  onChange: (v: T) => void;
-  id: string;
-}) {
+export function Tabs<T extends string>({ options, value, onChange, id }: { options: { value: T; label: string; count?: number }[]; value: T; onChange: (v: T) => void; id: string }) {
   return (
-    <div role="tablist" className="no-scrollbar -mx-4 flex gap-1 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-      <div className="flex gap-1 rounded-2xl border border-line bg-surface p-1">
+    <div className="no-scrollbar -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+      <div role="tablist" className="inline-flex gap-1 rounded-full bg-sunken p-1.5 shadow-well">
         {options.map((o) => {
-          const active = o.value === value;
+          const on = o.value === value;
           return (
             <button
               key={o.value}
               role="tab"
-              aria-selected={active}
+              aria-selected={on}
               onClick={() => onChange(o.value)}
-              className={cn(
-                'relative h-10 whitespace-nowrap rounded-xl px-3.5 text-[13px] font-semibold transition-colors duration-150',
-                active ? 'text-fg' : 'text-fg-muted hover:text-fg'
-              )}
+              className={cn('relative h-10 whitespace-nowrap rounded-full px-4 text-[13.5px] font-semibold transition-colors duration-200', on ? 'text-ink' : 'text-ink-3 hover:text-ink-2')}
             >
-              {active && (
-                <m.span
-                  layoutId={`seg-${id}`}
-                  className="absolute inset-0 rounded-xl border border-accent/40 bg-accent-soft shadow-glow-sm"
-                  transition={{ type: 'spring', stiffness: 500, damping: 38 }}
-                />
-              )}
+              {on && <m.span layoutId={`tab-${id}`} className="absolute inset-0 rounded-full bg-card shadow-soft" transition={{ type: 'spring', stiffness: 480, damping: 36 }} />}
               <span className="relative inline-flex items-center gap-1.5">
                 {o.label}
-                {o.count !== undefined && (
-                  <span className={cn('font-mono text-[12px] tabular-nums', active ? 'text-accent' : 'text-fg-faint')}>{o.count}</span>
-                )}
+                {o.count !== undefined && <span className={cn('num text-[12.5px]', on ? 'text-accent' : 'text-ink-3')}>{o.count}</span>}
               </span>
             </button>
           );
@@ -565,7 +531,7 @@ export function Segmented<T extends string>({
 }
 
 // ---------------------------------------------------------------------------
-// Sheet: bottom sheet on mobile (drag to dismiss), side panel on desktop.
+// Sheet: bottom sheet on mobile (drag the handle to dismiss), side panel on desktop
 // ---------------------------------------------------------------------------
 
 function useIsDesktop() {
@@ -618,25 +584,16 @@ export function Sheet({
     <AnimatePresence>
       {open && (
         <div className="fixed inset-0 z-50" role="dialog" aria-modal="true">
-          <m.div
-            className="absolute inset-0 bg-black/60"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            onClick={onClose}
-          />
+          <m.div className="absolute inset-0 bg-[rgb(20_16_12/0.38)]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.22 }} onClick={onClose} />
           <m.div
             className={cn(
-              'absolute flex flex-col border-line bg-surface',
-              desktop
-                ? cn('right-0 top-0 h-full w-full border-l', wide ? 'max-w-3xl' : 'max-w-lg')
-                : 'bottom-0 left-0 right-0 max-h-[92dvh] rounded-t-3xl border-t'
+              'absolute flex flex-col bg-card shadow-lift',
+              desktop ? cn('bottom-3 right-3 top-3 w-full rounded-5xl', wide ? 'max-w-2xl' : 'max-w-lg') : 'bottom-0 left-0 right-0 max-h-[92dvh] rounded-t-5xl'
             )}
-            initial={desktop ? { x: '100%' } : { y: '100%' }}
+            initial={desktop ? { x: '105%' } : { y: '100%' }}
             animate={desktop ? { x: 0 } : { y: 0 }}
-            exit={desktop ? { x: '100%' } : { y: '100%' }}
-            transition={{ type: 'spring', stiffness: 420, damping: 40, mass: 0.9 }}
+            exit={desktop ? { x: '105%' } : { y: '100%' }}
+            transition={{ type: 'spring', stiffness: 380, damping: 38, mass: 0.9 }}
             drag={desktop ? false : 'y'}
             dragConstraints={{ top: 0, bottom: 0 }}
             dragElastic={{ top: 0, bottom: 0.6 }}
@@ -644,26 +601,31 @@ export function Sheet({
           >
             {!desktop && (
               <div className="flex justify-center pb-1 pt-3" aria-hidden>
-                <span className="h-1.5 w-10 rounded-full bg-line-strong" />
+                <span className="h-1.5 w-11 rounded-full bg-line" />
               </div>
             )}
-            <div className="flex items-start justify-between gap-3 px-5 pb-3 pt-2 lg:pt-5">
+            <div className="flex items-start justify-between gap-3 px-6 pb-4 pt-2 lg:pt-6">
               <div className="min-w-0">
-                <div className="text-lg font-bold leading-snug">{title}</div>
-                {subtitle && <div className="mt-0.5 text-[13px] text-fg-muted">{subtitle}</div>}
+                <div className="font-display text-[22px] font-semibold leading-tight tracking-tight">{title}</div>
+                {subtitle && <div className="mt-1 text-[13.5px] text-ink-2">{subtitle}</div>}
               </div>
-              <IconButton label="Close" onClick={onClose} className="-mr-2 -mt-1">
+              <IconButton label="Close" onClick={onClose} className="-mr-2 -mt-1 bg-sunken">
                 <X className="h-5 w-5" />
               </IconButton>
             </div>
-            <div className="flex-1 overflow-y-auto overscroll-contain px-5 pb-5" onPointerDownCapture={(e) => e.stopPropagation()}>
+            <div className="flex-1 overflow-y-auto overscroll-contain px-6 pb-6" onPointerDownCapture={(e) => e.stopPropagation()}>
               {children}
             </div>
-            {footer && <div className="border-t border-line px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-3">{footer}</div>}
+            {footer && <div className="border-t border-line/70 px-6 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4">{footer}</div>}
           </m.div>
         </div>
       )}
     </AnimatePresence>,
     document.body
   );
+}
+
+/** Staggered entrance for lists (CSS-only; capped so long lists don't lag). */
+export function riseDelay(i: number): CSSProperties {
+  return { animationDelay: `${Math.min(i, 8) * 45}ms` };
 }

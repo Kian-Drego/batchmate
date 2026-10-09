@@ -115,6 +115,9 @@ export interface PassportDocumentRow {
   status: 'pending_review' | 'verified' | 'rejected';
   retention_until: string | null;
   uploaded_at: string;
+  review_note: string | null;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
 }
 
 export interface ChecklistItem {
@@ -210,4 +213,25 @@ export interface Insights {
   byIncomeTier: { key: string; total: number }[];
   byDegree: { key: string; total: number }[];
   awardedByType: { key: string; count: number }[];
+}
+
+export interface AdminAuditRow {
+  id: number;
+  actor_id: string | null;
+  action: string;
+  target_type: string;
+  target_id: string | null;
+  details: Record<string, unknown>;
+  created_at: string;
+}
+
+export interface AdminStats {
+  students: number;
+  newStudents7d: number;
+  pendingDocuments: number;
+  awaitingDecision: number;
+  activeApplications: number;
+  awarded: number;
+  activeScholarships: number;
+  closingSoon: number;
 }

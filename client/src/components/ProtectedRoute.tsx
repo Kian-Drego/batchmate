@@ -7,7 +7,7 @@ export default function ProtectedRoute({ children, admin }: { children: ReactNod
   const { user, profile, loading } = useAuth();
   const location = useLocation();
 
-  if (loading) {
+  if (loading || (user && admin && !profile)) {
     return (
       <div className="flex min-h-dvh items-center justify-center">
         <Spinner className="h-7 w-7" />

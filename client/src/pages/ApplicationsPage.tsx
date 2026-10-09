@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ClipboardList, ExternalLink, Smartphone } from 'lucide-react';
 import { useApplications } from '../lib/queries';
 import { deadlineLabel, inr, relativeTime } from '../lib/format';
 import ApplySheet from '../components/ApplySheet';
-import { Alert, Badge, Button, EmptyState, ListSkeleton, PageHeader, Progress, Segmented, StatusBadge } from '../components/ui';
+import { Button, Empty, ListSkeleton, Meter, Notice, PageTitle, StatusTag, Surface, Tabs, riseDelay } from '../components/ui';
 
 type View = 'active' | 'done';
 
@@ -24,41 +23,36 @@ export default function ApplicationsPage() {
 
   return (
     <div>
-      <PageHeader eyebrow="Tracker" title="Applications" description="Every scholarship you're applying for, with checklists and status in one place." />
+      <PageTitle kicker="Your tracker" title="Applications" />
 
       {awarded.length > 0 && (
-        <div className="card mb-4 flex items-center gap-4 border-mint/30 p-4 shadow-glow-mint">
-          <span className="text-3xl" aria-hidden>
-            🏆
-          </span>
-          <div>
-            <div className="font-bold">
-              {awarded.length} awarded · {inr(awarded.reduce((s, a) => s + Number(a.scholarship.amount || 0), 0))}
-            </div>
-            <div className="text-[13px] text-fg-muted">Keep it up. Renewal criteria live in Prep.</div>
+        <Surface tone="sage" grain className="mb-4 p-6">
+          <div className="text-[13.5px] font-semibold opacity-80">Won so far</div>
+          <div className="num mt-1 text-[40px] font-semibold leading-none">{inr(awarded.reduce((s, a) => s + Number(a.scholarship.amount || 0), 0))}</div>
+          <div className="mt-1.5 text-[14px] opacity-80">
+            across {awarded.length} scholarship{awarded.length === 1 ? '' : 's'}. Renewal rules live in Prep.
           </div>
-        </div>
+        </Surface>
       )}
 
-      <Segmented
+      <Tabs
         id="apps"
         value={view}
         onChange={setView}
         options={[
-          { value: 'active', label: 'Active', count: active.length },
-          { value: 'done', label: 'Completed', count: done.length },
+          { value: 'active', label: 'In motion', count: active.length },
+          { value: 'done', label: 'Decided', count: done.length },
         ]}
       />
 
       <div className="mt-4">
-        {error && <Alert>{(error as Error).message}</Alert>}
+        {error && <Notice tone="rose">{(error as Error).message}</Notice>}
         {isLoading ? (
           <ListSkeleton rows={3} />
         ) : list.length === 0 ? (
-          <EmptyState
-            icon={ClipboardList}
-            title={view === 'active' ? 'No active applications' : 'Nothing completed yet'}
-            description={view === 'active' ? 'Open any match and tap “Start applying” to track it here.' : 'Awarded and rejected applications land here.'}
+          <Empty
+            title={view === 'active' ? 'Nothing in motion' : 'No decisions yet'}
+            description={view === 'active' ? 'Open any match and tap “Start applying” to track it here.' : 'Awarded and declined applications land here.'}
             action={
               view === 'active' && (
                 <Link to="/matches">
@@ -68,37 +62,36 @@ export default function ApplicationsPage() {
             }
           />
         ) : (
-          <ul className="space-y-3">
-            {list.map((a) => {
+          <ul className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            {list.map((a, i) => {
               const completed = a.checklist.filter((c) => c.done).length;
               const pct = a.checklist.length ? (completed / a.checklist.length) * 100 : 0;
               const dl = deadlineLabel(a.scholarship.deadline);
               return (
-                <li key={a.id}>
-                  <button onClick={() => {
+                <li key={a.id} className="min-w-0">
+                  <button
+                    onClick={() => {
                       setSelectedId(a.id);
                       setSheetOpen(true);
-                    }} className="tap card block w-full p-4 text-left transition-[border-color] hover:border-accent/40">
+                    }}
+                    style={riseDelay(i)}
+                    className="press block w-full animate-rise rounded-4xl border border-line/70 bg-card p-5 text-left shadow-soft hover:shadow-lift"
+                  >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="line-clamp-2 font-bold leading-snug">{a.scholarship.title}</div>
-                        <div className="mt-0.5 truncate text-[13px] text-fg-muted">{a.scholarship.provider}</div>
-                      </div>
-                      <StatusBadge status={a.status} />
+                      <StatusTag status={a.status} />
+                      <span className="pt-1 text-[12.5px] text-ink-3">{relativeTime(a.updated_at)}</span>
                     </div>
-                    <div className="mt-3 flex items-center gap-3">
-                      <Progress value={pct} tone={pct === 100 ? 'mint' : 'accent'} />
-                      <span className="shrink-0 font-mono text-[12px] tabular-nums text-fg-faint">
+                    <div className="mt-3 line-clamp-2 font-display text-[19px] font-semibold leading-snug">{a.scholarship.title}</div>
+                    <div className="mt-0.5 truncate text-[13.5px] text-ink-3">{a.scholarship.provider}</div>
+                    <div className="mt-4 flex items-center gap-3">
+                      <Meter value={pct} tone={pct === 100 ? 'sage' : 'ink'} />
+                      <span className="num shrink-0 text-[13px] text-ink-3">
                         {completed}/{a.checklist.length}
                       </span>
                     </div>
-                    <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[12px] text-fg-faint">
-                      <Badge>
-                        {a.mode === 'native' ? <Smartphone className="h-3 w-3" /> : <ExternalLink className="h-3 w-3" />}
-                        {a.mode === 'native' ? 'Apply here' : 'Official portal'}
-                      </Badge>
-                      {view === 'active' && <Badge tone={dl.tone === 'urgent' ? 'hot' : dl.tone === 'soon' ? 'warn' : 'neutral'}>{dl.text}</Badge>}
-                      <span className="ml-auto">updated {relativeTime(a.updated_at)}</span>
+                    <div className="mt-3 flex items-center justify-between text-[12.5px] text-ink-3">
+                      <span>{a.mode === 'native' ? 'Applied through BatchMate' : 'Official portal'}</span>
+                      {view === 'active' && <span className={dl.tone === 'urgent' ? 'font-semibold text-accent' : ''}>{dl.text}</span>}
                     </div>
                   </button>
                 </li>
@@ -108,9 +101,7 @@ export default function ApplicationsPage() {
         )}
       </div>
 
-      {selected && (
-        <ApplySheet open={sheetOpen} onClose={() => setSheetOpen(false)} scholarship={selected.scholarship} application={selected} />
-      )}
+      {selected && <ApplySheet open={sheetOpen} onClose={() => setSheetOpen(false)} scholarship={selected.scholarship} application={selected} />}
     </div>
   );
 }

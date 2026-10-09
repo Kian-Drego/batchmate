@@ -17,9 +17,17 @@ const ApplicationsPage = lazy(() => import('./pages/ApplicationsPage'));
 const ExamHubPage = lazy(() => import('./pages/ExamHubPage'));
 const ExamTakePage = lazy(() => import('./pages/ExamTakePage'));
 const PassportPage = lazy(() => import('./pages/PassportPage'));
-const InsightsPage = lazy(() => import('./pages/InsightsPage'));
-const AdminPage = lazy(() => import('./pages/AdminPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
+
+const AdminOverviewPage = lazy(() => import('./pages/admin/AdminOverviewPage'));
+const AdminReviewPage = lazy(() => import('./pages/admin/AdminReviewPage'));
+const AdminApplicationsPage = lazy(() => import('./pages/admin/AdminApplicationsPage'));
+const AdminStudentsPage = lazy(() => import('./pages/admin/AdminStudentsPage'));
+const AdminCataloguePage = lazy(() => import('./pages/admin/AdminCataloguePage'));
+const AdminInsightsPage = lazy(() => import('./pages/admin/AdminInsightsPage'));
+const AdminSourcesPage = lazy(() => import('./pages/admin/AdminSourcesPage'));
+const AdminActivityPage = lazy(() => import('./pages/admin/AdminActivityPage'));
+const AdminMorePage = lazy(() => import('./pages/admin/AdminMorePage'));
 
 function FullPageSpinner() {
   return (
@@ -29,9 +37,14 @@ function FullPageSpinner() {
   );
 }
 
-export default function App() {
-  const { user, loading } = useAuth();
+function Home() {
+  const { user, profile, loading } = useAuth();
+  if (loading || (user && !profile)) return <FullPageSpinner />;
+  if (!user) return <Navigate to="/login" replace />;
+  return <Navigate to={profile?.role === 'admin' ? '/admin' : '/dashboard'} replace />;
+}
 
+export default function App() {
   return (
     <Suspense fallback={<FullPageSpinner />}>
       <Routes>
@@ -54,7 +67,7 @@ export default function App() {
         <Route
           element={
             <ProtectedRoute>
-              <AppShell />
+              <AppShell variant="student" />
             </ProtectedRoute>
           }
         >
@@ -64,18 +77,28 @@ export default function App() {
           <Route path="/applications" element={<ApplicationsPage />} />
           <Route path="/exams" element={<ExamHubPage />} />
           <Route path="/passport" element={<PassportPage />} />
-          <Route path="/insights" element={<InsightsPage />} />
-          <Route
-            path="/admin"
-            element={
-              <ProtectedRoute admin>
-                <AdminPage />
-              </ProtectedRoute>
-            }
-          />
         </Route>
 
-        <Route path="/" element={loading ? <FullPageSpinner /> : <Navigate to={user ? '/dashboard' : '/login'} replace />} />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute admin>
+              <AppShell variant="admin" />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<AdminOverviewPage />} />
+          <Route path="review" element={<AdminReviewPage />} />
+          <Route path="applications" element={<AdminApplicationsPage />} />
+          <Route path="students" element={<AdminStudentsPage />} />
+          <Route path="catalogue" element={<AdminCataloguePage />} />
+          <Route path="insights" element={<AdminInsightsPage />} />
+          <Route path="sources" element={<AdminSourcesPage />} />
+          <Route path="activity" element={<AdminActivityPage />} />
+          <Route path="more" element={<AdminMorePage />} />
+        </Route>
+
+        <Route path="/" element={<Home />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Suspense>

@@ -9,7 +9,8 @@
     "seed:demo": "tsx seed.ts --demo",
     "make-admin": "tsx make-admin.ts",
     "setup-cron": "tsx setup-cron.ts",
-    "smoke": "tsx smoke.ts"
+    "smoke": "tsx smoke.ts",
+    "create-admin": "tsx create-admin.ts"
   },
   "devDependencies": {
     "@types/pg": "^8.23.1",

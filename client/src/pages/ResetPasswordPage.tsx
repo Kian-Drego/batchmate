@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import AuthLayout from '../components/AuthLayout';
-import { Alert, Button, Field, Input, Spinner } from '../components/ui';
+import { Notice, Button, Field, Input, Spinner } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 
 export default function ResetPasswordPage() {
@@ -38,10 +38,10 @@ export default function ResetPasswordPage() {
           <Spinner />
         </div>
       ) : !session ? (
-        <Alert tone="warn">This reset link is invalid or has expired. Request a new one from the sign-in page.</Alert>
+        <Notice tone="butter">This reset link is invalid or has expired. Request a new one from the sign-in page.</Notice>
       ) : (
         <form onSubmit={onSubmit} className="space-y-4">
-          {error && <Alert>{error}</Alert>}
+          {error && <Notice tone="rose">{error}</Notice>}
           <Field label="New password" htmlFor="password">
             <Input
               id="password"

@@ -3,7 +3,7 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Eye, EyeOff } from 'lucide-react';
 import AuthLayout, { GoogleButton } from '../components/AuthLayout';
-import { Alert, Button, Field, Input } from '../components/ui';
+import { Notice, Button, Field, Input } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 
 function friendly(message: string): string {
@@ -16,7 +16,7 @@ export default function LoginPage() {
   const { user, signIn, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const from = (location.state as { from?: string } | null)?.from ?? '/dashboard';
+  const from = (location.state as { from?: string } | null)?.from ?? '/';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
@@ -43,7 +43,7 @@ export default function LoginPage() {
     <AuthLayout title="Welcome back" subtitle="Sign in to see your matches.">
       <GoogleButton onClick={() => signInWithGoogle().catch((e: Error) => toast.error(e.message))} />
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
-        {error && <Alert>{error}</Alert>}
+        {error && <Notice tone="rose">{error}</Notice>}
         <Field label="Email" htmlFor="email">
           <Input
             id="email"
@@ -70,7 +70,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setShow((v) => !v)}
-              className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center text-fg-faint hover:text-fg"
+              className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center text-ink-3 hover:text-ink"
               aria-label={show ? 'Hide password' : 'Show password'}
             >
               {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -86,7 +86,7 @@ export default function LoginPage() {
           Sign in
         </Button>
       </form>
-      <p className="mt-6 text-center text-sm text-fg-muted">
+      <p className="mt-6 text-center text-sm text-ink-2">
         New here?{' '}
         <Link to="/register" className="font-semibold text-accent">
           Create your passport

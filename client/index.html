@@ -3,26 +3,28 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#09090e" />
-    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#f2eee7" />
+    <meta name="color-scheme" content="light dark" />
     <meta
       name="description"
       content="BatchMate: find scholarships you actually qualify for, track applications and prep for aptitude tests."
     />
-    <meta property="og:title" content="BatchMate — Scholarships, matched" />
+    <meta property="og:title" content="BatchMate — scholarships that fit you" />
     <meta property="og:description" content="Find scholarships you actually qualify for. Free, private, no Aadhaar required." />
     <meta property="og:type" content="website" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <title>BatchMate — Scholarships, matched</title>
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <title>BatchMate — scholarships that fit you</title>
     <script>
-      // Apply the stored theme before first paint (dark is default).
+      // Resolve theme before first paint: stored choice, else system preference.
       try {
-        if (localStorage.getItem('bm-theme') === 'light') {
-          document.documentElement.classList.add('light');
-          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#f6f6fb');
+        var stored = localStorage.getItem('bm-theme');
+        var dark = stored ? stored === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (dark) {
+          document.documentElement.classList.add('dark');
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#161513');
         }
       } catch (e) {}
     </script>

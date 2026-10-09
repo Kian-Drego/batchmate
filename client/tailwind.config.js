@@ -1,43 +1,55 @@
 /** @type {import('tailwindcss').Config} */
-const token = (name) => `rgb(var(--${name}) / <alpha-value>)`;
+const t = (name) => `rgb(var(--${name}) / <alpha-value>)`;
+const pastel = (name) => ({ DEFAULT: t(name), ink: t(`${name}-ink`) });
 
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
-  // Dark is the default; `.light` on <html> swaps the CSS tokens (src/index.css).
+  // Light is the base; `.dark` on <html> swaps the CSS tokens (src/index.css).
   darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        bg: token('bg'),
-        surface: { DEFAULT: token('surface'), 2: token('surface-2'), 3: token('surface-3') },
-        line: { DEFAULT: token('line'), strong: token('line-strong') },
-        fg: { DEFAULT: token('fg'), muted: token('fg-muted'), faint: token('fg-faint') },
-        accent: { DEFAULT: token('accent'), fg: token('accent-fg'), soft: token('accent-soft') },
-        mint: { DEFAULT: token('mint'), soft: token('mint-soft') },
-        hot: { DEFAULT: token('hot'), soft: token('hot-soft') },
-        warn: { DEFAULT: token('warn'), soft: token('warn-soft') },
-        danger: { DEFAULT: token('danger'), soft: token('danger-soft') },
+        canvas: t('canvas'),
+        card: t('card'),
+        sunken: t('sunken'),
+        line: t('line'),
+        ink: { DEFAULT: t('ink'), 2: t('ink-2'), 3: t('ink-3') },
+        primary: { DEFAULT: t('primary'), fg: t('primary-fg') },
+        accent: t('accent'),
+        peach: pastel('peach'),
+        sage: pastel('sage'),
+        lilac: pastel('lilac'),
+        butter: pastel('butter'),
+        sky: pastel('sky'),
+        rose: pastel('rose'),
       },
       fontFamily: {
-        sans: ['"Plus Jakarta Sans Variable"', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
-        mono: ['"JetBrains Mono Variable"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+        display: ['"Bricolage Grotesque Variable"', 'ui-rounded', 'system-ui', 'sans-serif'],
+        sans: ['"Figtree Variable"', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif'],
       },
-      borderRadius: { xl: '14px', '2xl': '18px', '3xl': '24px' },
+      borderRadius: { '4xl': '28px', '5xl': '36px' },
       boxShadow: {
-        // Static glows (box-shadow, not filter: blur) — cheap to paint once.
-        glow: '0 0 0 1px rgb(var(--accent) / 0.45), 0 10px 30px -10px rgb(var(--accent) / 0.65)',
-        'glow-sm': '0 0 0 1px rgb(var(--accent) / 0.35), 0 4px 16px -6px rgb(var(--accent) / 0.55)',
-        'glow-mint': '0 0 0 1px rgb(var(--mint) / 0.4), 0 8px 24px -10px rgb(var(--mint) / 0.6)',
-        card: '0 1px 0 0 rgb(255 255 255 / 0.04) inset, 0 8px 24px -16px rgb(0 0 0 / 0.6)',
+        // Tactile: a hairline top highlight + two soft, warm drop shadows.
+        soft: 'inset 0 1px 0 rgb(255 255 255 / var(--hl)), 0 1px 2px rgb(var(--shade) / 0.06), 0 8px 24px -12px rgb(var(--shade) / 0.22)',
+        lift: 'inset 0 1px 0 rgb(255 255 255 / var(--hl)), 0 2px 4px rgb(var(--shade) / 0.06), 0 18px 40px -16px rgb(var(--shade) / 0.32)',
+        press: 'inset 0 1px 2px rgb(var(--shade) / 0.12)',
+        key: 'inset 0 1px 0 rgb(255 255 255 / 0.18), 0 1px 0 rgb(0 0 0 / 0.25), 0 6px 14px -6px rgb(var(--shade) / 0.45)',
+        well: 'inset 0 1px 3px rgb(var(--shade) / 0.10)',
       },
       spacing: { 'safe-b': 'env(safe-area-inset-bottom)', 'safe-t': 'env(safe-area-inset-top)' },
+      transitionTimingFunction: {
+        spring: 'cubic-bezier(0.34, 1.4, 0.64, 1)',
+        out: 'cubic-bezier(0.22, 1, 0.36, 1)',
+      },
       keyframes: {
-        shimmer: { '100%': { transform: 'translateX(100%)' } },
-        'pop-in': { '0%': { transform: 'scale(0.6)', opacity: '0' }, '100%': { transform: 'scale(1)', opacity: '1' } },
+        rise: { '0%': { opacity: '0', transform: 'translateY(10px)' }, '100%': { opacity: '1', transform: 'none' } },
+        pop: { '0%': { transform: 'scale(0.85)', opacity: '0' }, '100%': { transform: 'scale(1)', opacity: '1' } },
+        breathe: { '0%,100%': { opacity: '0.55' }, '50%': { opacity: '1' } },
       },
       animation: {
-        shimmer: 'shimmer 1.4s infinite',
-        'pop-in': 'pop-in 260ms cubic-bezier(0.34, 1.56, 0.64, 1) both',
+        rise: 'rise 420ms cubic-bezier(0.22, 1, 0.36, 1) both',
+        pop: 'pop 320ms cubic-bezier(0.34, 1.4, 0.64, 1) both',
+        breathe: 'breathe 1.6s ease-in-out infinite',
       },
     },
   },

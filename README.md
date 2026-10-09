@@ -3,7 +3,7 @@
 A mobile-first web app for **scholarship discovery, eligibility matching, guided applications,
 document retention and mock-exam prep** for Indian students.
 
-- **Frontend:** React 18 + Vite + Tailwind + Framer Motion, installable PWA, dark-first UI.
+- **Frontend:** React 18 + Vite + Tailwind + Framer Motion, installable PWA, "soft tactile" UI with light + dark modes.
   Hosted on GitHub Pages at <https://batchmate.duckdns.org>.
 - **Backend:** Supabase. That means Postgres with row-level security, Auth, Storage, Edge
   Functions and pg_cron. There is no separate server to host.
@@ -31,7 +31,7 @@ scripts/     seed, admin promotion, cron setup, end-to-end smoke test
 | **Applications** | Security-definer RPCs (`start_application`, `set_checklist_item`, `update_application_status`, `submit_application`) enforce the checklist and the allowed status transitions. |
 | **Documents** | Private `documents` bucket, stored as `<user_id>/<file>`. While any application is active, documents are locked. Once all are complete, documents get *completion + 180 days*, then the nightly sweep deletes them. |
 | **Exam prep** | The `exams` Edge Function builds mock tests (an OpenAI-compatible LLM, or a curated offline bank) and scores attempts server-side. Readiness, weak topics and pace are tracked per user. |
-| **Insights** | `get_insights()` returns aggregates only. Any bucket with fewer than 3 profiles is folded into "Other". |
+| **Admin console** | `/admin`: document verification queue, application decisions, student files and roles, catalogue editor, insights (admins only; aggregates only, buckets under 3 profiles folded into "Other"), scrape audit and a full activity log. |
 | **Catalogue refresh** | pg_cron runs the `jobs` function at 00:00 IST. By default it ingests the bundled, verified snapshot (`SCRAPER_LIVE=false`). With `SCRAPER_LIVE=true` it fetches static sources live, and records each source in `scrape_runs`. |
 
 ### Privacy rules (enforced)
@@ -62,6 +62,7 @@ npm run dev                                # http://localhost:5173
 npm run db:push                                  # apply supabase/migrations
 npm --workspace scripts run seed                 # load the scholarship catalogue
 npm --workspace scripts run seed:demo            # + demo student (student@example.com)
+npm --workspace scripts run create-admin         # admin@batchmate.app, password saved to .env
 npm --workspace scripts run make-admin -- <email>
 npm --workspace scripts run setup-cron           # Vault secrets for pg_cron
 npm --workspace scripts run smoke                # end-to-end RLS / RPC / storage checks

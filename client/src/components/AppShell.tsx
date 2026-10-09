@@ -2,105 +2,100 @@ import { Suspense } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { m } from 'framer-motion';
 import {
-  BarChart3,
+  Activity,
+  BookOpen,
   ClipboardList,
+  FileCheck2,
+  Gauge,
   GraduationCap,
-  Home,
+  House,
+  LayoutGrid,
+  Library,
+  LineChart,
   Moon,
-  ShieldCheck,
-  Sparkles,
+  Radar,
+  Sparkle,
   Sun,
   UserRound,
+  Users,
   type LucideIcon,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { initials } from '../lib/format';
-import { cn, IconButton, Spinner } from './ui';
+import { Avatar, IconButton, Spinner, cn } from './ui';
 
 interface NavItem {
   to: string;
   label: string;
   icon: LucideIcon;
+  end?: boolean;
 }
 
-const PRIMARY: NavItem[] = [
-  { to: '/dashboard', label: 'Home', icon: Home },
-  { to: '/matches', label: 'Matches', icon: Sparkles },
+const STUDENT_DOCK: NavItem[] = [
+  { to: '/dashboard', label: 'Home', icon: House },
+  { to: '/matches', label: 'Matches', icon: Sparkle },
   { to: '/applications', label: 'Apply', icon: ClipboardList },
   { to: '/exams', label: 'Prep', icon: GraduationCap },
   { to: '/passport', label: 'Me', icon: UserRound },
 ];
 
-const SECONDARY: NavItem[] = [{ to: '/insights', label: 'Insights', icon: BarChart3 }];
-const ADMIN: NavItem[] = [{ to: '/admin', label: 'Source audit', icon: ShieldCheck }];
+const ADMIN_DOCK: NavItem[] = [
+  { to: '/admin', label: 'Overview', icon: Gauge, end: true },
+  { to: '/admin/review', label: 'Review', icon: FileCheck2 },
+  { to: '/admin/applications', label: 'Decide', icon: ClipboardList },
+  { to: '/admin/students', label: 'People', icon: Users },
+  { to: '/admin/more', label: 'More', icon: LayoutGrid },
+];
 
-export function Logo({ compact }: { compact?: boolean }) {
+const ADMIN_SIDEBAR: NavItem[] = [
+  ...ADMIN_DOCK.slice(0, 4),
+  { to: '/admin/catalogue', label: 'Catalogue', icon: Library },
+  { to: '/admin/insights', label: 'Insights', icon: LineChart },
+  { to: '/admin/sources', label: 'Sources', icon: Radar },
+  { to: '/admin/activity', label: 'Activity', icon: Activity },
+];
+
+export function Logo({ to = '/' }: { to?: string }) {
   return (
-    <Link to="/dashboard" className="tap flex items-center gap-2.5" aria-label="BatchMate home">
-      <img src="/icon.svg" alt="" width={32} height={32} className="h-8 w-8 rounded-[10px]" />
-      {!compact && <span className="text-[17px] font-extrabold tracking-tight">BatchMate</span>}
+    <Link to={to} className="press flex items-center gap-2.5" aria-label="BatchMate home">
+      <img src="/icon.svg" alt="" width={34} height={34} className="h-[34px] w-[34px] rounded-[11px] shadow-soft" />
+      <span className="font-display text-[19px] font-semibold tracking-tight">batchmate</span>
     </Link>
   );
 }
 
-function ThemeButton() {
+export function ThemeButton({ className }: { className?: string }) {
   const { theme, toggle } = useTheme();
   return (
-    <IconButton label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} onClick={toggle}>
-      {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+    <IconButton label={theme === 'dark' ? 'Light mode' : 'Dark mode'} onClick={toggle} className={className}>
+      {theme === 'dark' ? <Sun className="h-[19px] w-[19px]" /> : <Moon className="h-[19px] w-[19px]" />}
     </IconButton>
   );
 }
 
-function Avatar() {
-  const { profile, user } = useAuth();
-  const name = profile?.name || user?.email || '';
+function Dock({ items }: { items: NavItem[] }) {
   return (
-    <Link
-      to="/passport"
-      aria-label="Your profile"
-      className="tap flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-accent/40 bg-accent-soft text-[13px] font-bold text-accent"
-    >
-      {profile?.avatar_url ? (
-        <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-      ) : (
-        initials(name)
-      )}
-    </Link>
-  );
-}
-
-function BottomNav() {
-  return (
-    <nav
-      aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-bg/95 pb-safe-b lg:hidden"
-    >
-      <ul className="mx-auto grid max-w-lg grid-cols-5">
-        {PRIMARY.map(({ to, label, icon: Icon }) => (
+    <nav aria-label="Primary" className="fixed inset-x-0 bottom-[calc(12px+env(safe-area-inset-bottom))] z-40 flex justify-center px-3 lg:hidden">
+      <ul className="flex items-center gap-1 rounded-full border border-line/70 bg-card p-1.5 shadow-lift">
+        {items.map(({ to, label, icon: Icon, end }) => (
           <li key={to}>
-            <NavLink
-              to={to}
-              className={({ isActive }) =>
-                cn(
-                  'relative flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors',
-                  isActive ? 'text-fg' : 'text-fg-faint'
-                )
-              }
-            >
+            <NavLink to={to} end={end} aria-label={label}>
               {({ isActive }) => (
-                <>
-                  {isActive && (
-                    <m.span
-                      layoutId="bottom-nav-pill"
-                      className="absolute top-2 h-8 w-14 rounded-full bg-accent-soft shadow-glow-sm"
-                      transition={{ type: 'spring', stiffness: 520, damping: 36 }}
-                    />
+                <m.span
+                  layout
+                  transition={{ type: 'spring', stiffness: 520, damping: 38 }}
+                  className={cn(
+                    'press flex h-12 items-center justify-center gap-2 rounded-full text-[13.5px] font-semibold',
+                    isActive ? 'bg-primary px-4 text-primary-fg shadow-key' : 'w-12 text-ink-3 hover:text-ink'
                   )}
-                  <Icon className={cn('relative h-[22px] w-[22px]', isActive && 'text-accent')} strokeWidth={isActive ? 2.4 : 2} />
-                  <span className="relative">{label}</span>
-                </>
+                >
+                  <Icon className="h-[21px] w-[21px] shrink-0" strokeWidth={isActive ? 2.3 : 1.9} />
+                  {isActive && (
+                    <m.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.08 }}>
+                      {label}
+                    </m.span>
+                  )}
+                </m.span>
               )}
             </NavLink>
           </li>
@@ -110,47 +105,45 @@ function BottomNav() {
   );
 }
 
-function SideNav() {
+function Sidebar({ items, home }: { items: NavItem[]; home: string }) {
   const { profile } = useAuth();
-  const groups = [PRIMARY, SECONDARY, ...(profile?.role === 'admin' ? [ADMIN] : [])];
   return (
-    <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-line px-4 py-5 lg:flex">
-      <Logo />
-      <nav aria-label="Primary" className="mt-8 flex-1 space-y-6">
-        {groups.map((items, gi) => (
-          <ul key={gi} className="space-y-1">
-            {items.map(({ to, label, icon: Icon }) => (
-              <li key={to}>
-                <NavLink
-                  to={to}
-                  className={({ isActive }) =>
-                    cn(
-                      'relative flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors',
-                      isActive ? 'text-fg' : 'text-fg-muted hover:bg-surface-2 hover:text-fg'
-                    )
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      {isActive && (
-                        <m.span
-                          layoutId="side-nav-pill"
-                          className="absolute inset-0 rounded-xl border border-accent/30 bg-accent-soft"
-                          transition={{ type: 'spring', stiffness: 520, damping: 40 }}
-                        />
-                      )}
-                      <Icon className={cn('relative h-5 w-5', isActive && 'text-accent')} />
-                      <span className="relative">{label === 'Me' ? 'Passport' : label}</span>
-                    </>
-                  )}
-                </NavLink>
-              </li>
-            ))}
-          </ul>
-        ))}
+    <aside className="sticky top-0 hidden h-dvh w-[260px] shrink-0 flex-col px-5 py-6 lg:flex">
+      <Logo to={home} />
+      <nav aria-label="Primary" className="mt-10 flex-1">
+        <ul className="space-y-1">
+          {items.map(({ to, label, icon: Icon, end }) => (
+            <li key={to}>
+              <NavLink
+                to={to}
+                end={end}
+                className={({ isActive }) =>
+                  cn(
+                    'press relative flex h-12 items-center gap-3 rounded-full px-4 text-[14.5px] font-semibold',
+                    isActive ? 'text-primary-fg' : 'text-ink-2 hover:bg-card hover:text-ink'
+                  )
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    {isActive && (
+                      <m.span layoutId="sidebar-key" className="absolute inset-0 rounded-full bg-primary shadow-key" transition={{ type: 'spring', stiffness: 520, damping: 40 }} />
+                    )}
+                    <Icon className="relative h-[19px] w-[19px]" />
+                    <span className="relative">{label}</span>
+                  </>
+                )}
+              </NavLink>
+            </li>
+          ))}
+        </ul>
       </nav>
-      <div className="flex items-center justify-between border-t border-line pt-4">
-        <Avatar />
+      <div className="surface flex items-center gap-3 p-2 pl-3">
+        <Avatar name={profile?.name} src={profile?.avatar_url} size={36} />
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[13.5px] font-semibold">{profile?.name}</div>
+          <div className="truncate text-[12px] text-ink-3">{profile?.role === 'admin' ? 'Admin' : 'Student'}</div>
+        </div>
         <ThemeButton />
       </div>
     </aside>
@@ -165,38 +158,39 @@ function PageFallback() {
   );
 }
 
-export default function AppShell() {
+export default function AppShell({ variant }: { variant: 'student' | 'admin' }) {
   const location = useLocation();
+  const { profile } = useAuth();
+  const admin = variant === 'admin';
+  const home = admin ? '/admin' : '/dashboard';
+
   return (
     <div className="flex min-h-dvh">
-      <SideNav />
+      <Sidebar items={admin ? ADMIN_SIDEBAR : [...STUDENT_DOCK.slice(0, 4), { to: '/passport', label: 'Passport', icon: BookOpen }]} home={home} />
       <div className="min-w-0 flex-1">
-        {/* Mobile top bar */}
-        <header className="sticky top-0 z-30 border-b border-line/70 bg-bg/90 pt-safe-t lg:hidden">
-          <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-4">
-            <Logo />
+        <header className="sticky top-0 z-30 bg-canvas/90 pt-safe-t lg:hidden">
+          <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-4">
+            <Logo to={home} />
             <div className="flex items-center gap-1">
               <ThemeButton />
-              <Avatar />
+              <Link to={admin ? '/admin/more' : '/passport'} aria-label="Account" className="press ml-1">
+                <Avatar name={profile?.name} src={profile?.avatar_url} size={38} />
+              </Link>
             </div>
           </div>
         </header>
 
-        <main className="mx-auto w-full max-w-5xl px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5 sm:px-6 lg:px-10 lg:pb-12 lg:pt-10">
-          {/* Enter-only transition: no exit delay between tabs. */}
-          <m.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-          >
+        <main className="mx-auto w-full max-w-[1080px] px-4 pb-[calc(7rem+env(safe-area-inset-bottom))] pt-3 sm:px-6 lg:px-10 lg:pb-14 lg:pt-12">
+          {/* Enter-only page transition: no exit delay between tabs. */}
+          <m.div key={location.pathname} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}>
             <Suspense fallback={<PageFallback />}>
               <Outlet />
             </Suspense>
           </m.div>
         </main>
       </div>
-      <BottomNav />
+      {/* Pushed detail screens have their own back button + action bar. */}
+      {!location.pathname.startsWith('/scholarships/') && <Dock items={admin ? ADMIN_DOCK : STUDENT_DOCK} />}
     </div>
   );
 }

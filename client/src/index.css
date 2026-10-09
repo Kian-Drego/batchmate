@@ -1,20 +1,23 @@
-/* Latin-only variable fonts (~40 KB total). Other subsets fall back to system fonts. */
+/* Latin-only variable fonts: Bricolage Grotesque (display, 41 KB) + Figtree (text, 20 KB). */
 @font-face {
-  font-family: 'Plus Jakarta Sans Variable';
+  font-family: 'Bricolage Grotesque Variable';
   font-style: normal;
   font-display: swap;
   font-weight: 200 800;
-  src: url('../../node_modules/@fontsource-variable/plus-jakarta-sans/files/plus-jakarta-sans-latin-wght-normal.woff2') format('woff2-variations');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+20B9, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  src: url('../../node_modules/@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2')
+    format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+20B9, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 @font-face {
-  font-family: 'JetBrains Mono Variable';
+  font-family: 'Figtree Variable';
   font-style: normal;
   font-display: swap;
-  font-weight: 100 800;
-  src: url('../../node_modules/@fontsource-variable/jetbrains-mono/files/jetbrains-mono-latin-wght-normal.woff2') format('woff2-variations');
-  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+20B9, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  font-weight: 300 900;
+  src: url('../../node_modules/@fontsource-variable/figtree/files/figtree-latin-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+20B9, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 @tailwind base;
@@ -22,53 +25,68 @@
 @tailwind utilities;
 
 @layer base {
-  /* Dark (default) — deep ink with electric violet + mint glows */
+  /* Light — oat paper, warm ink, pastel families */
   :root {
-    color-scheme: dark;
-    --bg: 9 9 14;
-    --surface: 17 17 25;
-    --surface-2: 24 24 35;
-    --surface-3: 33 33 47;
-    --line: 37 37 52;
-    --line-strong: 58 58 80;
-    --fg: 242 242 248;
-    --fg-muted: 165 165 188;
-    --fg-faint: 112 112 136;
-    --accent: 139 108 255;
-    --accent-fg: 255 255 255;
-    --accent-soft: 37 30 70;
-    --mint: 52 227 164;
-    --mint-soft: 14 48 38;
-    --hot: 255 102 178;
-    --hot-soft: 60 20 42;
-    --warn: 255 189 89;
-    --warn-soft: 56 40 14;
-    --danger: 255 107 107;
-    --danger-soft: 60 20 22;
+    color-scheme: light;
+    --canvas: 242 238 231;
+    --card: 252 250 246;
+    --sunken: 234 229 220;
+    --line: 223 216 204;
+    --ink: 32 29 26;
+    --ink-2: 98 92 84;
+    --ink-3: 146 139 129;
+    --primary: 32 29 26;
+    --primary-fg: 252 250 246;
+    --accent: 226 98 56;
+    --shade: 74 52 30;
+    --hl: 0.75;
+
+    --peach: 248 222 204;
+    --peach-ink: 133 62 26;
+    --sage: 216 230 209;
+    --sage-ink: 44 94 52;
+    --lilac: 225 219 246;
+    --lilac-ink: 78 62 152;
+    --butter: 246 232 182;
+    --butter-ink: 118 86 8;
+    --sky: 211 228 240;
+    --sky-ink: 30 86 130;
+    --rose: 247 217 216;
+    --rose-ink: 152 40 48;
+
+    --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.3 0 0 0 0 0.22 0 0 0 0 0.14 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
-  :root.light {
-    color-scheme: light;
-    --bg: 246 246 251;
-    --surface: 255 255 255;
-    --surface-2: 241 241 248;
-    --surface-3: 230 230 241;
-    --line: 226 226 238;
-    --line-strong: 200 200 218;
-    --fg: 16 16 26;
-    --fg-muted: 82 82 104;
-    --fg-faint: 128 128 150;
-    --accent: 104 68 240;
-    --accent-fg: 255 255 255;
-    --accent-soft: 236 232 255;
-    --mint: 8 160 112;
-    --mint-soft: 218 246 235;
-    --hot: 220 38 127;
-    --hot-soft: 253 228 241;
-    --warn: 190 112 0;
-    --warn-soft: 254 240 214;
-    --danger: 214 48 48;
-    --danger-soft: 253 226 226;
+  /* Dark — warm charcoal, never pure black; pastels become deep muted tints */
+  :root.dark {
+    color-scheme: dark;
+    --canvas: 22 21 19;
+    --card: 32 30 27;
+    --sunken: 26 25 22;
+    --line: 50 47 42;
+    --ink: 238 233 224;
+    --ink-2: 178 171 160;
+    --ink-3: 124 118 109;
+    --primary: 238 233 224;
+    --primary-fg: 26 24 21;
+    --accent: 242 136 96;
+    --shade: 0 0 0;
+    --hl: 0.05;
+
+    --peach: 64 42 31;
+    --peach-ink: 248 198 170;
+    --sage: 37 52 38;
+    --sage-ink: 184 222 178;
+    --lilac: 45 40 70;
+    --lilac-ink: 202 192 246;
+    --butter: 60 51 24;
+    --butter-ink: 240 214 142;
+    --sky: 30 45 58;
+    --sky-ink: 168 206 234;
+    --rose: 64 32 34;
+    --rose-ink: 245 174 174;
+
+    --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.035 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
   html {
@@ -84,21 +102,26 @@
   }
 
   body {
-    @apply bg-bg font-sans text-fg antialiased;
-    /* One static radial glow behind the header — painted once, never animated. */
-    background-image: radial-gradient(56rem 26rem at 50% -12rem, rgb(var(--accent) / 0.16), transparent 70%);
-    background-repeat: no-repeat;
+    @apply bg-canvas font-sans text-[15px] text-ink antialiased;
+    background-image: var(--grain); /* static paper grain — tiles once, cached */
     overscroll-behavior-y: none;
   }
 
+  h1,
+  h2,
+  h3 {
+    font-family: theme('fontFamily.display');
+    letter-spacing: -0.025em;
+  }
+
   ::selection {
-    background: rgb(var(--accent) / 0.35);
+    background: rgb(var(--accent) / 0.25);
   }
 
   :focus-visible {
     outline: 2px solid rgb(var(--accent));
-    outline-offset: 2px;
-    border-radius: 10px;
+    outline-offset: 3px;
+    border-radius: 14px;
   }
 
   input,
@@ -115,20 +138,20 @@
 }
 
 @layer components {
-  .eyebrow {
-    @apply text-[12px] font-semibold uppercase tracking-[0.14em] text-fg-faint;
+  .surface {
+    @apply rounded-4xl border border-line/70 bg-card shadow-soft;
   }
-  .tap {
-    @apply transition-transform duration-150 ease-out active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100;
+  .grainy {
+    background-image: var(--grain);
   }
-  .card {
-    @apply rounded-2xl border border-line bg-surface shadow-card;
+  /* Physical press: sinks 1px and loses its lift. */
+  .press {
+    @apply transition-[transform,box-shadow,background-color,color,border-color] duration-200 ease-out active:translate-y-px active:scale-[0.985] motion-reduce:transition-none motion-reduce:active:transform-none;
   }
-  .gradient-text {
-    background-image: linear-gradient(92deg, rgb(var(--fg)) 0%, rgb(var(--accent)) 55%, rgb(var(--hot)) 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
+  .num {
+    font-family: theme('fontFamily.display');
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
   }
   .no-scrollbar {
     scrollbar-width: none;

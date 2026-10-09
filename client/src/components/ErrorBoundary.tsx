@@ -20,15 +20,12 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, St
     const chunkError = /Loading chunk|dynamically imported module|Importing a module script failed/i.test(this.state.error.message);
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center px-6 text-center">
-        <div className="text-5xl" aria-hidden>
-          ⚡
-        </div>
-        <h1 className="mt-4 text-xl font-bold">{chunkError ? 'A new version is available' : 'Something broke'}</h1>
-        <p className="mt-2 max-w-sm text-sm text-fg-muted">
-          {chunkError ? 'Reload to get the latest BatchMate.' : 'Try reloading. If it keeps happening, let us know.'}
+        <h1 className="font-display text-[28px] font-semibold">{chunkError ? 'A fresh version is ready' : 'Something slipped'}</h1>
+        <p className="mt-2 max-w-sm text-[15px] text-ink-2">
+          {chunkError ? 'Reload to get the latest BatchMate.' : 'Reloading usually fixes it. If it keeps happening, let us know.'}
         </p>
         <button
-          className="tap mt-6 h-11 rounded-xl bg-accent px-5 text-sm font-semibold text-accent-fg shadow-glow-sm"
+          className="press mt-6 h-12 rounded-full bg-primary px-6 text-[14.5px] font-semibold text-primary-fg shadow-key"
           onClick={() => window.location.reload()}
         >
           Reload

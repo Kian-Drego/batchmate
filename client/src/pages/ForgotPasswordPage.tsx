@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import AuthLayout from '../components/AuthLayout';
-import { Alert, Button, Field, Input } from '../components/ui';
+import { Notice, Button, Field, Input } from '../components/ui';
 import { useAuth } from '../context/AuthContext';
 
 export default function ForgotPasswordPage() {
@@ -28,10 +28,10 @@ export default function ForgotPasswordPage() {
   return (
     <AuthLayout title="Reset your password" subtitle="We'll email you a secure link.">
       {sent ? (
-        <Alert tone="mint">If an account exists for {email}, a reset link is on its way.</Alert>
+        <Notice tone="sage">If an account exists for {email}, a reset link is on its way.</Notice>
       ) : (
         <form onSubmit={onSubmit} className="space-y-4">
-          {error && <Alert>{error}</Alert>}
+          {error && <Notice tone="rose">{error}</Notice>}
           <Field label="Email" htmlFor="email">
             <Input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
           </Field>

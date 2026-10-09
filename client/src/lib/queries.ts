@@ -6,12 +6,15 @@ import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { completeness, matchAll } from '@shared/matching.ts';
 import type {
+  AdminAuditRow,
+  AdminStats,
   ApplicationRow,
   ExamAttemptRow,
   Insights,
   PassportDocumentRow,
   PassportRow,
   PassportUpdate,
+  ProfileRow,
   ScholarshipRow,
   ScrapeRunRow,
 } from '@shared/types.ts';
@@ -126,7 +129,7 @@ export function useAttempts() {
 export function useInsights() {
   return useQuery({
     queryKey: keys.insights,
-    queryFn: () => run<Insights>(supabase.rpc('get_insights')),
+    queryFn: () => run<Insights>(supabase.rpc('get_insights_admin')),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -409,4 +412,158 @@ export function useRunScrape() {
       qc.invalidateQueries({ queryKey: keys.scholarships });
     },
   });
+}
+
+// ---------------------------------------------------------------------------
+// Admin console
+// ---------------------------------------------------------------------------
+
+export type ProfileLite = Pick<ProfileRow, 'id' | 'name' | 'email'>;
+export type ReviewDocument = PassportDocumentRow & { profile: ProfileLite | null };
+export type AdminApplication = ApplicationRow & { scholarship: ScholarshipRow; profile: ProfileLite | null };
+export type StudentRow = ProfileRow & { passport: PassportRow | null };
+export type AuditWithActor = AdminAuditRow & { actor: ProfileLite | null };
+
+export const adminKeys = {
+  stats: ['admin', 'stats'] as const,
+  documents: (status: string) => ['admin', 'documents', status] as const,
+  applications: (filter: string) => ['admin', 'applications', filter] as const,
+  students: ['admin', 'students'] as const,
+  student: (id: string) => ['admin', 'student', id] as const,
+  catalogue: ['admin', 'catalogue'] as const,
+  audit: ['admin', 'audit'] as const,
+};
+
+function rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
+  return run<T>(supabase.rpc(fn, args) as unknown as PromiseLike<{ data: T | null; error: unknown }>);
+}
+
+export function useAdminStats() {
+  return useQuery({ queryKey: adminKeys.stats, queryFn: () => rpc<AdminStats>('admin_stats', {}) });
+}
+
+export function useReviewQueue(status: PassportDocumentRow['status']) {
+  return useQuery({
+    queryKey: adminKeys.documents(status),
+    queryFn: () =>
+      run<ReviewDocument[]>(
+        supabase
+          .from('passport_documents')
+          .select('*, profile:profiles!passport_documents_user_id_fkey(id, name, email)')
+          .eq('status', status)
+          .order(status === 'pending_review' ? 'uploaded_at' : 'reviewed_at', { ascending: status === 'pending_review' })
+          .limit(200)
+      ),
+  });
+}
+
+export function useReviewDocument() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { id: string; status: PassportDocumentRow['status']; note?: string }) =>
+      rpc<PassportDocumentRow>('admin_review_document', { p_document: v.id, p_status: v.status, p_note: v.note ?? null }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin'] }),
+  });
+}
+
+export type AppFilter = 'review' | 'active' | 'closed';
+
+export function useAdminApplications(filter: AppFilter) {
+  return useQuery({
+    queryKey: adminKeys.applications(filter),
+    queryFn: () => {
+      const statuses =
+        filter === 'review' ? ['Submitted', 'Verification Pending'] : filter === 'active' ? ['Not Started', 'In Progress'] : ['Awarded', 'Rejected'];
+      return run<AdminApplication[]>(
+        supabase
+          .from('applications')
+          .select('*, scholarship:scholarships(*), profile:profiles(id, name, email)')
+          .in('status', statuses)
+          .order('updated_at', { ascending: false })
+          .limit(200)
+      );
+    },
+  });
+}
+
+export function useDecideApplication() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { id: string; status: ApplicationStatus; note?: string }) =>
+      rpc<ApplicationRow>('admin_decide_application', { p_application: v.id, p_status: v.status, p_note: v.note ?? null }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin'] }),
+  });
+}
+
+export function useStudents() {
+  return useQuery({
+    queryKey: adminKeys.students,
+    queryFn: () => run<StudentRow[]>(supabase.from('profiles').select('*, passport:passports(*)').order('created_at', { ascending: false }).limit(500)),
+  });
+}
+
+export function useStudentDetail(id: string | null) {
+  return useQuery({
+    queryKey: adminKeys.student(id ?? ''),
+    enabled: Boolean(id),
+    queryFn: async () => {
+      const [documents, applications] = await Promise.all([
+        run<PassportDocumentRow[]>(supabase.from('passport_documents').select('*').eq('user_id', id!).order('uploaded_at', { ascending: false })),
+        run<ApplicationWithScholarship[]>(
+          supabase.from('applications').select('*, scholarship:scholarships(*)').eq('user_id', id!).order('updated_at', { ascending: false })
+        ),
+      ]);
+      return { documents, applications };
+    },
+  });
+}
+
+export function useSetRole() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { id: string; role: 'student' | 'admin' }) => rpc<ProfileRow>('admin_set_role', { p_user: v.id, p_role: v.role }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin'] }),
+  });
+}
+
+export function useCatalogue() {
+  return useQuery({
+    queryKey: adminKeys.catalogue,
+    queryFn: () => run<ScholarshipRow[]>(supabase.from('scholarships').select('*').order('updated_at', { ascending: false })),
+  });
+}
+
+export type ScholarshipInput = Omit<ScholarshipRow, 'id' | 'created_at' | 'updated_at' | 'last_scraped_at'> & { id?: string };
+
+export function useSaveScholarship() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: ScholarshipInput) => {
+      const { id, ...row } = input;
+      return run<ScholarshipRow>(
+        id
+          ? supabase.from('scholarships').update(row).eq('id', id).select('*').single()
+          : supabase.from('scholarships').insert(row).select('*').single()
+      );
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin'] });
+      qc.invalidateQueries({ queryKey: keys.scholarships });
+    },
+  });
+}
+
+export function useAudit() {
+  return useQuery({
+    queryKey: adminKeys.audit,
+    queryFn: () =>
+      run<AuditWithActor[]>(supabase.from('admin_audit').select('*, actor:profiles(id, name, email)').order('created_at', { ascending: false }).limit(200)),
+  });
+}
+
+/** Signed URL for previewing any document (admins can read every folder). */
+export async function signedUrl(storageKey: string): Promise<string> {
+  const { data, error } = await supabase.storage.from('documents').createSignedUrl(storageKey, 300);
+  if (error || !data) throw await toError(error);
+  return data.signedUrl;
 }
