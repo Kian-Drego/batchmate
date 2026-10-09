@@ -155,6 +155,7 @@ Admin login: `npm --workspace scripts run create-admin` (credentials land in `.e
 - [x] Hosting moved to Vercel (env vars set there); GitHub Pages workflow + CNAME removed
 - [ ] batchmate.duckdns.org added in Vercel and DuckDNS A record → 76.76.21.21
 - [x] Soft email verification with rate-limit windows (`20261010000003`)
+- [x] Education levels trimmed — Class 10/11/12 + Diploma removed, 'Other' free-text (`degree_other`), study years adapt to the selected level (`20261010000004`)
 - [ ] Custom SMTP for auth emails (built-in sender is rate-limited) — then consider OTP codes
 
 ## Scripts (`scripts/` workspace, reads root `.env`)

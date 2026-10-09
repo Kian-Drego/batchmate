@@ -85,6 +85,8 @@ export interface PassportRow {
   institution: string | null;
   course: string | null;
   degree: Degree | null;
+  /** Free-text expansion when `degree` is 'Other'. */
+  degree_other: string | null;
   current_year: string | null;
   class12_percentage: number | null;
   cgpa: number | null;

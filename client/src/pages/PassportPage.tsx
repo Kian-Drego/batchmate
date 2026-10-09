@@ -4,7 +4,7 @@ import { AnimatePresence, m } from 'framer-motion';
 import { toast } from 'sonner';
 import { Eye, Lock, LogOut, Plus, Trash2, UploadCloud } from 'lucide-react';
 import type { PassportRow, PassportUpdate } from '@shared/types.ts';
-import { CATEGORIES, CURRENT_YEARS, DEGREES, DOCUMENT_TYPES, GENDERS, INCOME_BRACKETS, INCOME_LABELS, STATES, type DocumentType } from '../lib/constants';
+import { CATEGORIES, DEGREES, DEGREE_YEARS, DOCUMENT_TYPES, GENDERS, INCOME_BRACKETS, INCOME_LABELS, STATES, STUDY_YEARS, type Degree, type DocumentType } from '../lib/constants';
 import { openDocument, useDeleteDocument, useDocuments, usePassport, useUpdatePassport, useUploadDocument } from '../lib/queries';
 import { useAuth } from '../context/AuthContext';
 import { bytes, shortDate } from '../lib/format';
@@ -16,6 +16,7 @@ const EDITABLE: (keyof PassportUpdate)[] = [
   'institution',
   'course',
   'degree',
+  'degree_other',
   'current_year',
   'class12_percentage',
   'cgpa',
@@ -30,8 +31,19 @@ const EDITABLE: (keyof PassportUpdate)[] = [
 
 type Form = Partial<Record<keyof PassportUpdate, unknown>>;
 
+/**
+ * Snapshot the passport into form state. School-year levels saved before the
+ * level list was trimmed (Class 10/11/12, Diploma) no longer satisfy the DB
+ * check, so surface them as 'Other' pinned to their original free-text value.
+ */
 function pick(p: PassportRow): Form {
-  return Object.fromEntries(EDITABLE.map((k) => [k, p[k]])) as Form;
+  const form = Object.fromEntries(EDITABLE.map((k) => [k, p[k]])) as Form;
+  const degree = form.degree as string | null;
+  if (degree && !(DEGREES as readonly string[]).includes(degree)) {
+    form.degree_other = form.degree_other ?? degree;
+    form.degree = 'Other';
+  }
+  return form;
 }
 
 function Chapter({ n, title, sub, children }: { n: string; title: string; sub?: string; children: ReactNode }) {
@@ -100,6 +112,18 @@ export default function PassportPage() {
 
   const set = (k: keyof PassportUpdate) => (v: unknown) => setForm((f) => ({ ...f, [k]: v === '' ? null : v }));
   const num = (k: keyof PassportUpdate) => (e: React.ChangeEvent<HTMLInputElement>) => set(k)(e.target.value === '' ? null : Number(e.target.value));
+
+  const level = form.degree as Degree | null | undefined;
+  const yearOptions = level ? DEGREE_YEARS[level] ?? STUDY_YEARS : STUDY_YEARS;
+
+  /** Level drives which study years make sense; clear a year that no longer fits. */
+  const chooseLevel = (v: Degree | null) => {
+    set('degree')(v);
+    if (v !== 'Other') set('degree_other')(null);
+    const current = form.current_year as string | null;
+    const allowed = v ? DEGREE_YEARS[v] ?? STUDY_YEARS : STUDY_YEARS;
+    if (current && !allowed.includes(current)) set('current_year')(null);
+  };
 
   const validation = (() => {
     const pct = form.class12_percentage as number | null;
@@ -186,8 +210,25 @@ export default function PassportPage() {
           <Field label="Institution" htmlFor="institution">
             <Input id="institution" value={(form.institution as string) ?? ''} onChange={(e) => set('institution')(e.target.value)} placeholder="College or school" maxLength={160} />
           </Field>
-          <ChipField label="Level" options={DEGREES} value={form.degree} onChange={set('degree')} />
-          <ChipField label="Year" options={CURRENT_YEARS.filter((y) => y !== 'Any')} value={form.current_year} onChange={set('current_year')} />
+          <ChipField label="Level" options={DEGREES} value={form.degree} onChange={chooseLevel} />
+          <ChipField
+            label="Year"
+            options={yearOptions}
+            value={form.current_year}
+            onChange={set('current_year')}
+            hint={!level ? 'Pick a level to see its year options.' : undefined}
+          />
+          {level === 'Other' && (
+            <Field label="Specify your level" htmlFor="degree_other">
+              <Input
+                id="degree_other"
+                value={(form.degree_other as string) ?? ''}
+                onChange={(e) => set('degree_other')(e.target.value)}
+                placeholder="e.g. Integrated law, certificate, vocational"
+                maxLength={80}
+              />
+            </Field>
+          )}
           <Field label="Course" htmlFor="course">
             <Input id="course" value={(form.course as string) ?? ''} onChange={(e) => set('course')(e.target.value)} placeholder="e.g. B.Tech Computer Science" maxLength={120} />
           </Field>

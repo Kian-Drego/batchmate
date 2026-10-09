@@ -12,10 +12,6 @@ export const GENDERS = ['Male', 'Female', 'Other', 'Prefer not to say'] as const
 export type Gender = (typeof GENDERS)[number];
 
 export const DEGREES = [
-  'Class 10',
-  'Class 11',
-  'Class 12',
-  'Diploma',
   'Undergraduate',
   'Postgraduate',
   'Professional (MBBS/BTech/LLB)',
