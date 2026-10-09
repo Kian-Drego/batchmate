@@ -78,7 +78,7 @@ export default function LoginPage() {
             </ul>
           </div>
 
-          <p className="font-mono text-[11px] uppercase tracking-[0.15em] text-paper/50 dark:text-ink-faint">
+          <p className="font-mono text-xs uppercase tracking-[0.15em] text-paper/50 dark:text-ink-faint">
             Catalogue refreshed daily at 00:00 IST
           </p>
         </section>

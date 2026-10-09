@@ -354,7 +354,7 @@ export default function PassportPage() {
             <label className="flex items-center gap-3 rounded-card border border-line-faint px-3 py-2.5">
               <input
                 type="checkbox"
-                className="h-4 w-4 accent-lavender"
+                className="h-5 w-5 shrink-0 accent-lavender"
                 checked={Boolean(form.demographic.disabilityStatus)}
                 onChange={(e) => update('demographic', 'disabilityStatus', e.target.checked)}
               />
@@ -447,7 +447,7 @@ export default function PassportPage() {
                   <button
                     onClick={() => removeDoc(doc._id)}
                     disabled={Boolean(doc.retentionUntilDate)}
-                    className="rounded-card border border-line-faint p-2 text-ink-faint hover:bg-stop-soft hover:text-stop disabled:opacity-40"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-card border border-line-faint text-ink-faint hover:bg-stop-soft hover:text-stop disabled:opacity-40"
                     aria-label={`Remove ${doc.type}`}
                   >
                     <Trash2 className="h-3.5 w-3.5" />

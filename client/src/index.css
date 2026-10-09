@@ -104,7 +104,7 @@
 
 @layer components {
   .label-eyebrow {
-    @apply font-mono text-[11px] uppercase tracking-[0.18em] text-ink-faint;
+    @apply font-mono text-xs uppercase tracking-[0.18em] text-ink-faint;
   }
 
   .panel {
@@ -124,7 +124,7 @@
   }
 
   .input {
-    @apply w-full border border-line bg-paper-raised rounded-card px-3 py-2.5 text-sm text-ink
+    @apply w-full min-h-[2.75rem] border border-line bg-paper-raised rounded-card px-3 py-2.5 text-sm text-ink
       placeholder:text-ink-faint focus:border-lavender focus:ring-1 focus:ring-lavender;
   }
 

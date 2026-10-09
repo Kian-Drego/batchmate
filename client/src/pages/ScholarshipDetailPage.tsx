@@ -235,7 +235,7 @@ function GuidedDrawer({
                       Open official portal <ArrowUpRight className="h-4 w-4" />
                     </Button>
                   </a>
-                  <p className="mt-2 break-all text-[11px] text-ink-faint">
+                  <p className="mt-2 break-all text-xs text-ink-faint">
                     {scholarship.externalPortalUrl ?? scholarship.officialSourceUrl}
                   </p>
                 </Panel>
@@ -393,7 +393,7 @@ export default function ScholarshipDetailPage() {
     <div>
       <button
         onClick={() => navigate(-1)}
-        className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-ink-soft hover:text-ink"
+        className="mb-2 inline-flex min-h-[2.5rem] items-center gap-1.5 py-2 text-sm font-semibold text-ink-soft hover:text-ink"
       >
         <ArrowLeft className="h-4 w-4" /> Back to matches
       </button>
@@ -446,7 +446,7 @@ export default function ScholarshipDetailPage() {
               href={scholarship.officialSourceUrl}
               target="_blank"
               rel="noreferrer"
-              className="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-lavender-ink underline"
+              className="mt-1 inline-flex items-center gap-1 py-2 text-sm font-semibold text-lavender-ink underline"
             >
               Official <ExternalLink className="h-3 w-3" />
             </a>

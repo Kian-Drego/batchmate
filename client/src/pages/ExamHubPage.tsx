@@ -191,7 +191,7 @@ export default function ExamHubPage() {
                         {bp.blueprint.map((s) => (
                           <span
                             key={s.section}
-                            className="rounded-pill border border-line-faint bg-paper-sunken px-2.5 py-0.5 text-[11px] text-ink-soft"
+                            className="rounded-pill border border-line-faint bg-paper-sunken px-2.5 py-0.5 text-xs text-ink-soft"
                           >
                             {s.section} · {s.questions}Q
                           </span>

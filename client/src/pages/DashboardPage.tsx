@@ -103,7 +103,7 @@ export default function DashboardPage() {
               <Target className="h-4 w-4 text-lavender" aria-hidden />
               <h3 className="text-lg font-semibold">Strongest matches</h3>
             </div>
-            <Link to="/matches" className="text-xs font-semibold text-lavender-ink underline">
+            <Link to="/matches" className="inline-flex items-center py-1.5 -my-1.5 text-xs font-semibold text-lavender-ink underline">
               View all {allMatches.length}
             </Link>
           </div>
@@ -119,7 +119,7 @@ export default function DashboardPage() {
                   <div className="min-w-0 flex-1">
                     <Link
                       to={`/scholarships/${m.scholarshipId}`}
-                      className="block truncate text-sm font-semibold text-ink hover:underline"
+                      className="block truncate py-1 text-sm font-semibold text-ink hover:underline"
                     >
                       {m.scholarship.title}
                     </Link>
@@ -157,7 +157,7 @@ export default function DashboardPage() {
                     <div className="min-w-0">
                       <Link
                         to={`/scholarships/${m.scholarshipId}`}
-                        className="block truncate text-sm font-medium text-ink hover:underline"
+                        className="block truncate py-1 text-sm font-medium text-ink hover:underline"
                       >
                         {m.scholarship.title}
                       </Link>
@@ -181,7 +181,7 @@ export default function DashboardPage() {
             <TrendingUp className="h-4 w-4 text-lavender" aria-hidden />
             <h3 className="text-lg font-semibold">Application tracker</h3>
           </div>
-          <Link to="/applications" className="text-xs font-semibold text-lavender-ink underline">
+          <Link to="/applications" className="inline-flex items-center py-1.5 -my-1.5 text-xs font-semibold text-lavender-ink underline">
             Manage
           </Link>
         </div>

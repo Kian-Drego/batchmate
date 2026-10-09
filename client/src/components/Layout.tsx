@@ -77,7 +77,7 @@ export default function Layout() {
               <span className="block font-serif text-base font-semibold text-ink">
                 BatchMate
               </span>
-              <span className="block font-mono text-[10px] uppercase tracking-[0.15em] text-ink-faint">
+              <span className="block font-mono text-[11px] uppercase tracking-[0.15em] text-ink-faint">
                 Match · Prep · Apply
               </span>
             </span>
@@ -90,20 +90,20 @@ export default function Layout() {
               </span>
               <div className="leading-tight">
                 <div className="text-xs font-semibold text-ink">{user?.name}</div>
-                <div className="text-[11px] text-ink-faint">{user?.email}</div>
+                <div className="text-xs text-ink-faint">{user?.email}</div>
               </div>
             </div>
             <ThemeToggle />
             <button
               onClick={handleLogout}
               aria-label="Sign out"
-              className="inline-flex items-center gap-1.5 rounded-card border border-line px-3 py-1.5 text-xs font-semibold text-ink-soft hover:bg-paper-sunken"
+              className="inline-flex min-h-[2.5rem] items-center gap-1.5 rounded-card border border-line px-3.5 text-xs font-semibold text-ink-soft hover:bg-paper-sunken"
             >
-              <LogOut className="h-3.5 w-3.5" aria-hidden />
+              <LogOut className="h-4 w-4" aria-hidden />
               <span className="hidden sm:inline">Sign out</span>
             </button>
             <button
-              className="rounded-card border border-line p-2 lg:hidden"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-card border border-line lg:hidden"
               onClick={() => setMobileOpen((v) => !v)}
               aria-label="Toggle navigation"
             >
@@ -119,7 +119,7 @@ export default function Layout() {
           <div className="sticky top-24">
             <NavItems />
             <div className="mt-6 border-t border-line-faint pt-4">
-              <p className="text-[11px] leading-relaxed text-ink-faint">
+              <p className="text-xs leading-relaxed text-ink-faint">
                 No national ID is ever collected. Only the metadata needed to verify eligibility is
                 stored on your passport.
               </p>

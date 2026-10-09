@@ -87,7 +87,7 @@ export default function MatchesPage() {
             <button
               key={f.key}
               onClick={() => setFilter(f.key)}
-              className={`inline-flex items-center gap-1.5 rounded-card border px-3 py-1.5 text-xs font-semibold transition-colors ${
+              className={`inline-flex min-h-[2.5rem] items-center gap-1.5 rounded-card border px-3 py-2.5 text-xs font-semibold transition-colors ${
                 filter === f.key
                   ? 'border-line bg-inverse text-inverse-fg'
                   : 'border-line-faint bg-paper-raised text-ink-soft hover:bg-paper-sunken'

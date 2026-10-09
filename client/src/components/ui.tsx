@@ -21,7 +21,7 @@ export function Button({
   ...rest
 }: ButtonProps) {
   const base =
-    'inline-flex items-center justify-center gap-2 font-semibold rounded-card border transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+    'inline-flex min-h-[2.5rem] items-center justify-center gap-2 font-semibold rounded-card border transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
   const sizes = size === 'sm' ? 'px-3 py-1.5 text-xs' : 'px-4 py-2.5 text-sm';
   const variants: Record<string, string> = {
     primary: 'bg-inverse text-inverse-fg border-line hover:opacity-90',
@@ -62,7 +62,7 @@ export function Badge({
   };
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-pill border px-2.5 py-0.5 font-mono text-[11px] uppercase tracking-wide ${tones[tone]} ${className}`}
+      className={`inline-flex items-center gap-1 rounded-pill border px-2.5 py-0.5 font-mono text-xs uppercase tracking-wide ${tones[tone]} ${className}`}
     >
       {children}
     </span>

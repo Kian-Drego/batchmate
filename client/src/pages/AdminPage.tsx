@@ -93,25 +93,25 @@ export default function AdminPage() {
           <table className="w-full min-w-[720px] text-sm">
             <thead>
               <tr className="border-b border-line text-left">
-                <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wide text-ink-faint">
+                <th className="px-4 py-3 font-mono text-xs uppercase tracking-wide text-ink-faint">
                   Source
                 </th>
-                <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wide text-ink-faint">
+                <th className="px-4 py-3 font-mono text-xs uppercase tracking-wide text-ink-faint">
                   Status
                 </th>
-                <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wide text-ink-faint">
+                <th className="px-4 py-3 font-mono text-xs uppercase tracking-wide text-ink-faint">
                   Mode
                 </th>
-                <th className="px-4 py-3 text-right font-mono text-[11px] uppercase tracking-wide text-ink-faint">
+                <th className="px-4 py-3 text-right font-mono text-xs uppercase tracking-wide text-ink-faint">
                   Found
                 </th>
-                <th className="px-4 py-3 text-right font-mono text-[11px] uppercase tracking-wide text-ink-faint">
+                <th className="px-4 py-3 text-right font-mono text-xs uppercase tracking-wide text-ink-faint">
                   Upserted
                 </th>
-                <th className="px-4 py-3 text-right font-mono text-[11px] uppercase tracking-wide text-ink-faint">
+                <th className="px-4 py-3 text-right font-mono text-xs uppercase tracking-wide text-ink-faint">
                   Duration
                 </th>
-                <th className="px-4 py-3 font-mono text-[11px] uppercase tracking-wide text-ink-faint">
+                <th className="px-4 py-3 font-mono text-xs uppercase tracking-wide text-ink-faint">
                   Started
                 </th>
               </tr>

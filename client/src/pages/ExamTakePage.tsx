@@ -161,7 +161,7 @@ export default function ExamTakePage() {
       <div className="mx-auto max-w-2xl">
         <button
           onClick={() => navigate('/exams')}
-          className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-ink-soft hover:text-ink"
+          className="mb-2 inline-flex min-h-[2.5rem] items-center gap-1.5 py-2 text-sm font-semibold text-ink-soft hover:text-ink"
         >
           <ArrowLeft className="h-4 w-4" /> Exam hub
         </button>
