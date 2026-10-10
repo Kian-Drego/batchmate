@@ -52,5 +52,16 @@ export default defineConfig({
       },
     },
   },
-  server: { port: 5173 },
+  server: {
+    port: 5173,
+    // Mirror the production /api/edge proxy (see client/api/edge) so Edge
+    // Function calls work from the Vite dev server too.
+    proxy: {
+      '/api/edge': {
+        target: 'https://tresgtfjlqxrixitafjv.supabase.co/functions/v1',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/edge/, ''),
+      },
+    },
+  },
 });

@@ -373,10 +373,45 @@ export interface AttemptResult {
   }[];
 }
 
+/**
+ * Post to a Supabase Edge Function through the same-origin Vercel proxy
+ * (`/api/edge/<name>`). Direct `supabase.functions.invoke` calls are blocked by
+ * CORS from the www origin — the hosted functions' ALLOWED_ORIGINS secret only
+ * lists the apex domain — so the proxy handles that hop server-side.
+ */
+async function invokeEdge<T>(name: string, body: Record<string, unknown>): Promise<T> {
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token ?? null;
+  let res: Response;
+  try {
+    res = await fetch(`/api/edge/${name}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    throw new Error(err instanceof Error ? err.message : 'Could not reach the server');
+  }
+  const text = await res.text();
+  if (!res.ok) {
+    let parsed: { error?: string; details?: unknown } | null = null;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      /* non-JSON upstream error; fall back to a generic message */
+    }
+    const error = new Error(parsed?.error || 'Request failed') as Error & { details?: unknown };
+    if (parsed?.details !== undefined) error.details = parsed?.details;
+    throw error;
+  }
+  return text ? (JSON.parse(text) as T) : (null as T);
+}
+
 export async function invokeExams<T>(body: Record<string, unknown>): Promise<T> {
-  const { data, error } = await supabase.functions.invoke('exams', { body });
-  if (error) throw await toError(error);
-  return data as T;
+  return invokeEdge<T>('exams', body);
 }
 
 export function useMockTest(scholarshipId: string | undefined) {
@@ -402,11 +437,7 @@ export function useSubmitMock() {
 export function useRunScrape() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke('jobs', { body: { task: 'scrape' } });
-      if (error) throw await toError(error);
-      return data as { mode: string; totalUpserted: number };
-    },
+    mutationFn: () => invokeEdge<{ mode: string; totalUpserted: number }>('jobs', { task: 'scrape' }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: keys.scrapeRuns });
       qc.invalidateQueries({ queryKey: keys.scholarships });
