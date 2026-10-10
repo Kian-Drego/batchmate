@@ -28,24 +28,6 @@ const queryClient = new QueryClient({
   },
 });
 
-/**
- * vite-plugin-pwa activates a new service worker automatically, but an
- * already-open tab keeps running the bundle it first loaded. Reload once when a
- * new worker takes control so deployed changes actually reach the user.
- * Skipped on the very first visit (nothing to replace).
- */
-function reloadOnServiceWorkerUpdate() {
-  if (!('serviceWorker' in navigator)) return;
-  const hadController = Boolean(navigator.serviceWorker.controller);
-  let reloaded = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!hadController || reloaded) return;
-    reloaded = true;
-    window.location.reload();
-  });
-}
-reloadOnServiceWorkerUpdate();
-
 // Motion features (incl. drag + layout) load in a separate chunk after first paint.
 const loadMotion = () => import('./lib/motion-features').then((m) => m.default);
 
