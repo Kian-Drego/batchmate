@@ -26,6 +26,7 @@ type Passport = Pick<
   | 'category'
   | 'income_bracket'
   | 'gender'
+  | 'disability_status'
 >;
 
 type Scholarship = Pick<
@@ -39,6 +40,7 @@ type Scholarship = Pick<
   | 'marks_min'
   | 'current_year_allowed'
   | 'required_documents'
+  | 'disability_required'
 >;
 
 type Documents = Pick<PassportDocumentRow, 'type'>[];
@@ -138,6 +140,22 @@ export function evaluateScholarship(s: Scholarship, p: Passport, docs: Documents
     else {
       hardMatch = false;
       reasons.push({ kind: 'fail', label: `Open to ${genders.join(', ')} applicants`, detail: `Your gender is ${p.gender}` });
+    }
+  }
+
+  // Disability (reserved for students with a documented disability)
+  if (s.disability_required) {
+    if (p.disability_status === true) {
+      reasons.push({ kind: 'pass', label: 'Documented disability confirmed in your passport' });
+    } else if (p.disability_status === false) {
+      hardMatch = false;
+      reasons.push({
+        kind: 'fail',
+        label: 'Reserved for persons with a documented disability',
+        detail: 'Turn on “I have a documented disability” in your passport to unlock this scheme.',
+      });
+    } else {
+      missingFields.push('Disability status');
     }
   }
 

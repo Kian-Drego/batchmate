@@ -20,6 +20,7 @@ export function toRow(r: RawScholarship, lastScrapedAt: string) {
     required_documents: r.requiredDocuments,
     selection_process: r.selectionProcess,
     aptitude_test_required: r.aptitudeTestRequired,
+    disability_required: r.disabilityRequired ?? false,
     renewal_criteria: r.renewalCriteria ?? null,
     official_source_url: r.officialSourceUrl,
     last_scraped_at: lastScrapedAt,

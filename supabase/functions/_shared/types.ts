@@ -53,6 +53,8 @@ export interface ScholarshipRow {
   required_documents: DocumentType[];
   selection_process: string[];
   aptitude_test_required: boolean;
+  /** When true, only students who marked a documented disability in their passport match. */
+  disability_required: boolean;
   renewal_criteria: RenewalCriteria | null;
   official_source_url: string;
   last_scraped_at: string;

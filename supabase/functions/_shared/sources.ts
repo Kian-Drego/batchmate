@@ -55,4 +55,34 @@ export const SOURCES: ScraperSource[] = [
     provider: 'Reliance Foundation',
     strategy: 'cheerio',
   },
+  {
+    name: 'Ministry of Tribal Affairs Scholarships',
+    url: 'https://tribal.nic.in/Scholarship.aspx',
+    provider: 'Ministry of Tribal Affairs',
+    strategy: 'playwright',
+  },
+  {
+    name: 'DEPwD Post-Matric & Top Class Scholarships',
+    url: 'https://depwd.gov.in/en/scholarship-post-matric/',
+    provider: 'Department of Empowerment of Persons with Disabilities (DEPwD)',
+    strategy: 'playwright',
+  },
+  {
+    name: 'National Overseas Scholarship (NOS)',
+    url: 'https://nosmsje.gov.in/',
+    provider: 'Ministry of Social Justice and Empowerment',
+    strategy: 'playwright',
+  },
+  {
+    name: 'JN Tata Endowment',
+    url: 'https://jntataendowment.org/',
+    provider: 'JN Tata Endowment',
+    strategy: 'cheerio',
+  },
+  {
+    name: 'Sitaram Jindal Foundation',
+    url: 'https://www.sitaramjindalfoundation.org/scholarships-for-students-in-bangalore.php',
+    provider: 'Sitaram Jindal Foundation',
+    strategy: 'cheerio',
+  },
 ];

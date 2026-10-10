@@ -27,6 +27,7 @@ function blank(): ScholarshipInput {
     required_documents: [],
     selection_process: [],
     aptitude_test_required: false,
+    disability_required: false,
     renewal_criteria: null,
     official_source_url: '',
     application_mode: 'external',
@@ -160,6 +161,7 @@ function ScholarshipForm({ value, onChange }: { value: ScholarshipInput; onChang
         <Input id="tags" value={value.tags.join(', ')} onChange={(e) => set('tags', e.target.value.split(',').map((t) => t.trim()).filter(Boolean))} />
       </Field>
       <Switch checked={value.aptitude_test_required} onChange={(v) => set('aptitude_test_required', v)} label="Has an aptitude test" description="Shows a mock test in Prep." />
+      <Switch checked={value.disability_required} onChange={(v) => set('disability_required', v)} label="Reserved for persons with disabilities" description="Only students who mark a documented disability in their passport are matched." />
       <Switch checked={value.active} onChange={(v) => set('active', v)} label="Live" description="Hidden scholarships never reach students." />
     </div>
   );
