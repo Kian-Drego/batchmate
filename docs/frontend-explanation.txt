@@ -1,0 +1,187 @@
+BATCHMATE — FRONTEND EXPLANATION
+Languages, frameworks, and APIs
+====================================================
+
+This document explains how the BatchMate platform works under the hood:
+what languages it is written in, which frameworks it builds on, and the
+APIs it talks to. It is written for a non-technical reader but points to
+exact files for anyone who wants to dig deeper.
+
+----------------------------------------------------
+1. LANGUAGES
+----------------------------------------------------
+
+* TypeScript  — the main language for everything we write by hand:
+  the entire React frontend (client/src) AND the two Supabase Edge
+  Functions (supabase/functions/). TypeScript is JavaScript with types,
+  so mistakes are caught before the code ever runs. All business types
+  (scholarships, applications, exam attempts, passport rows...) live in
+  one shared file used by both the frontend and the backend:
+  supabase/functions/_shared/types.ts.
+
+* JavaScript (build tooling) — small hand-written Node scripts, e.g.
+  client/scripts/patch-sw.mjs which post-processes the PWA Service
+  Worker after each build.
+
+* HTML / CSS (markup) — React components are written in JSX (HTML
+  inside TypeScript). Styling is done with Tailwind CSS utility classes
+  (see "Frameworks" below), plus a CSS entry file.
+
+* SQL — Supabase migrations define the database schema, row-level
+  security (RLS) policies, functions such as is_admin(), and the
+  trigger that creates a profile for every new user
+  (supabase/migrations/20261009000001_core_schema.sql).
+
+----------------------------------------------------
+2. FRAMEWORKS AND KEY LIBRARIES
+----------------------------------------------------
+
+All versions below are what client/package.json pins.
+
+Frontend framework
+  * React 18.3 + react-dom — component UI library. The site is a
+    single-page application (SPA); the whole app lives on one HTML page
+    and React swaps screens in the browser.
+  * React Router 6.26 — routing. The complete route table is in
+    client/src/App.tsx:
+      - Public: /login, /register, /forgot-password, /auth/reset,
+        /auth/callback
+      - Student (behind ProtectedRoute): /dashboard, /matches,
+        /scholarships/:id, /applications, /exams, /exams/:id/take,
+        /passport
+      - Admin (behind admin-only ProtectedRoute): /admin with
+        overview, review, applications, students, catalogue, insights,
+        sources, activity, more
+      - Fallbacks: / redirects to the right shell based on role, and
+        * shows a 404 page.
+    ProtectedRoute checks the auth session AND the user's role from the
+    profiles table before allowing access.
+
+Server-state / data layer
+  * TanStack React Query 5 — manages all fetching, caching, and
+    mutations. Every screen's data hook lives in
+    client/src/lib/queries.ts (useScholarships, useApplications,
+    usePassport, admin hooks, etc.). Queries are cached (e.g.
+    scholarships are cached for 10 minutes) and invalidated after
+    mutations.
+
+PWA (installable / offline-first app)
+  * Vite 5 + @vitejs/plugin-react — the dev server and production build
+    (client/vite.config.ts).
+  * vite-plugin-pwa (Workbox generateSW) — turns the site into an
+    installable PWA with a Service Worker (sw.js) and manifest.
+    Config details (commit 6b9eb94):
+      - Network-first navigation: every page navigation fetches the
+        newest HTML from the network, and only falls back to the cached
+        app shell when offline (navigateFallback: null, directoryIndex:
+        null, a NetworkFirst runtime route with 3s timeout and
+        precacheFallback /index.html). This fixed a recurring "stale
+        app" class of bugs.
+      - Auth routes (/auth/*) are excluded from caching so password
+        reset / magic links always hit the network.
+  * client/scripts/patch-sw.mjs — post-build patch that adds install /
+    activate handlers and a client.navigate() route so the app
+    registers a `batchmate-sw-update` marker each time it updates.
+
+Styling & UI
+  * Tailwind CSS 3.4 (+ PostCSS + autoprefixer) — utility-first CSS.
+  * Framer Motion 11 — page/UI animations and transitions.
+  * sonner — toast notifications ("Document uploaded", errors, etc.).
+  * lucide-react — the icon set.
+  * clsx — tiny helper for conditional class names.
+  * @fontsource-variable/bricolage-grotesque and figtree — self-hosted
+    variable fonts (no external font CDN requests).
+
+Utilites
+  * fflate — in-browser ZIP generation. Used for the passport
+    "download all documents as ZIP" feature.
+
+Build / deploy chain
+  * client/package.json build script:
+      tsc --noEmit  (type-check)  ->  vite build  ->  patch-sw.mjs
+  * Pushing to `main` auto-deploys to Vercel (see infra below).
+
+----------------------------------------------------
+3. APIS AND BACKEND SERVICES
+----------------------------------------------------
+
+The app talks to one platform: Supabase — reached through the official
+JavaScript client (@supabase/supabase-js 2.117). Configuration lives in
+client/src/lib/supabase.ts (implicit auth flow, publishable key from
+VITE_ env vars).
+
+3a. Supabase Auth (GoTrue)
+  Auth surface is wrapped in client/src/context/AuthContext.tsx:
+    - signIn(email, password)
+    - signUp(name, email, password)        (email confirmation flow)
+    - signInWithGoogle()                   (OAuth)
+    - sendPasswordReset(email) / updatePassword(password)
+    - signOut(); session persistence and auto-refresh; implicit flow so
+      emailed verification/reset links work across devices.
+    - RPC confirm_email_ownership — proves the user read their inbox and
+      stamps profiles.email_verified_at.
+
+3b. PostgREST (Supabase database — the "API")
+  All reads/writes use the typed supabase client: table + select +
+  filters. Row-level security (RLS) scopes every query to the signed-in
+  user; admin features are gated by profiles.role and the is_admin()
+  function. Main tables: profiles, passports, passport_documents,
+  scholarships, applications, exam_attempts, admin_audit and friends.
+  Writes that matter:
+    - scholarship save/upsert uses a strict whitelist of columns
+      (no generated `search` column is ever sent — that let us
+      eliminate the "column \"search\" can only be updated to DEFAULT"
+      admin error; that error only came from visitors running a stale
+      cached app).
+    - Document upload/download for the passport feature, and
+      fflate-based ZIP export.
+
+3c. RPC functions (Postgres functions called over PostgREST)
+  Examples: confirm_email_ownership, admin_stats, and admin review /
+  decision functions used by the admin console.
+
+3d. Supabase Edge Functions (Deno/TypeScript, server-side)
+  Two custom functions under supabase/functions/:
+    - exams — generates mock tests (action "generate") and scores
+      submissions (action "submit") for exam preparation.
+    - jobs — admin task runner (action "scrape") that refreshes the
+      scholarship catalogue from sources ("Sources -> Refresh now").
+  Cross-origin note (important): the browser itself is NOT allowed to
+  call functions.supabase.co/v1/... directly (CORS is locked to the
+  apex domain). Instead the frontend POSTs to the same-origin URL
+  /api/edge/<name> on www.batchmate.duckdns.org; Vercel rewrites that
+  to the Supabase function server-side, forwarding a JWT bearer token.
+  Implementation: invokeEdge() in client/src/lib/queries.ts, rewrite in
+  vercel.json, and both Edge functions share types/matching/constants
+  modules with the frontend via the `@shared` alias
+  (supabase/functions/_shared/). Matching logic (completeness(),
+  matchAll()) runs identically client-side and server-side.
+
+3e. Vercel (hosting / CDN)
+  vercel.json:
+    - Rewrite /api/edge/:path*  ->  https://tresgtfjlqxrixitafjv.supabase.co/functions/v1/:path*
+    - Rewrite all other paths to /index.html (SPA fallback so client
+      routes work on refresh).
+    - Cache headers: hashed /assets/* are immutable (1 year); sw.js,
+      registerSW.js, manifest.webmanifest and index.html are
+      must-revalidate (never cached) so PWA updates arrive quickly;
+      security headers on everything (nosniff, Referrer-Policy,
+      X-Frame-Options DENY, Permissions-Policy).
+
+3f. Key URLs and identity
+  - Live site:         https://www.batchmate.duckdns.org
+  - Supabase project:  https://tresgtfjlqxrixitafjv.supabase.co
+  - Auth/REST base:    the same Supabase project (publishable key only
+                       in the browser; never a service-role key).
+  - Deployments:       every push to `main` triggers a Vercel build.
+
+----------------------------------------------------
+4. DATA FLOW IN ONE SENTENCE
+----------------------------------------------------
+
+A signed-in user loads a screen -> a React Query hook requests data from
+the Supabase PostgREST API (RLS-filtered to their account) or calls an
+Edge Function through the Vercel /api/edge proxy -> the response comes
+back typed via @shared/types.ts and React re-renders the screen, with
+mutations (saving a scholarship, applying, uploading a document, taking
+a test, running a scrape) invalidating affected caches afterward.
