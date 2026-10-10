@@ -32,10 +32,31 @@ export default defineConfig({
         ],
       },
       workbox: {
-        navigateFallback: '/index.html',
+        // Explicitly disable generateSW's built-in NavigationRoute (the plugin
+        // defaults it to 'index.html'), so the NetworkFirst route below is the
+        // only handler for navigations and actually gets matched.
+        navigateFallback: null,
+        // Disable the precache's directory-index match ("/" -> "/index.html")
+        // so that root navigations also go through the NetworkFirst route
+        // instead of silently re-serving the stale precached shell.
+        directoryIndex: null,
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
-        // Never cache API/auth traffic.
-        navigateFallbackDenylist: [/^\/auth\//],
+        // Replace generateSW's navigation fallback (which re-serves the stale
+        // precached shell on every navigation) with a network-first navigation
+        // route: online visits always get the newest index.html, and offline
+        // visits fall back to the precached app shell.
+        runtimeCaching: [
+          {
+            urlPattern: ({ request, url }) =>
+              request.mode === 'navigate' && !url.pathname.startsWith('/auth/'),
+            handler: 'NetworkFirst' as const,
+            options: {
+              cacheName: 'batchmate-pages',
+              networkTimeoutSeconds: 3,
+              precacheFallback: { fallbackURL: '/index.html' },
+            },
+          },
+        ],
       },
     }),
   ],
