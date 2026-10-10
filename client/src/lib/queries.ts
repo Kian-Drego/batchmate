@@ -237,6 +237,8 @@ export function useUpdatePassport() {
 
 const MAX_BYTES = 500 * 1024;
 const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/heic'];
+/** Also raised by the `passport_documents_before_insert` trigger, so the DB and UI agree. */
+const DUPLICATE_DOCUMENT_MESSAGE = 'This document has already been uploaded. Please delete the document and try again.';
 
 export function useUploadDocument() {
   const uid = useUid();
@@ -245,6 +247,16 @@ export function useUploadDocument() {
     mutationFn: async ({ file, type }: { file: File; type: DocumentType }) => {
       if (file.size > MAX_BYTES) throw new Error('File too large. File size required to be less than or equal to 500 KB.');
       if (!ALLOWED_TYPES.includes(file.type)) throw new Error('Only PDF, JPG, PNG, WEBP or HEIC files are allowed');
+      // Only one document per type. Check before uploading so we never strand a
+      // file in storage for an upload the database is going to reject.
+      const { data: existing, error: lookupError } = await supabase
+        .from('passport_documents')
+        .select('id')
+        .eq('user_id', uid)
+        .eq('type', type)
+        .limit(1);
+      if (lookupError) throw await toError(lookupError);
+      if (existing && existing.length > 0) throw new Error(DUPLICATE_DOCUMENT_MESSAGE);
       const safeName = file.name.replace(/[^\w.\-]+/g, '_').slice(-120);
       const key = `${uid}/${crypto.randomUUID()}-${safeName}`;
       const { error: upErr } = await supabase.storage
@@ -258,6 +270,9 @@ export function useUploadDocument() {
         .single();
       if (error) {
         await supabase.storage.from('documents').remove([key]);
+        // 23505: the trigger blocked a second document of this type (e.g. a
+        // racing upload that slipped past the pre-check above).
+        if ((error as { code?: string }).code === '23505') throw new Error(DUPLICATE_DOCUMENT_MESSAGE);
         throw await toError(error);
       }
       return data as PassportDocumentRow;
