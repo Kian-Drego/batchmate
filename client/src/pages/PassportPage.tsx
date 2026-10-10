@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { AnimatePresence, m } from 'framer-motion';
 import { toast } from 'sonner';
-import { Eye, Lock, LogOut, Plus, Trash2, UploadCloud } from 'lucide-react';
+import { Download, Eye, Lock, LogOut, Plus, Trash2, UploadCloud } from 'lucide-react';
 import type { PassportRow, PassportUpdate } from '@shared/types.ts';
 import { CATEGORIES, DEGREES, DEGREE_YEARS, DOCUMENT_TYPES, GENDERS, INCOME_BRACKETS, INCOME_LABELS, STATES, STUDY_YEARS, type Degree, type DocumentType } from '../lib/constants';
-import { openDocument, useDeleteDocument, useDocuments, usePassport, useUpdatePassport, useUploadDocument } from '../lib/queries';
+import { openDocument, useDeleteDocument, useDocuments, useDownloadPassport, usePassport, useUpdatePassport, useUploadDocument } from '../lib/queries';
 import { useAuth } from '../context/AuthContext';
 import { bytes, shortDate } from '../lib/format';
 import { tick } from '../lib/haptics';
@@ -84,6 +84,7 @@ export default function PassportPage() {
   const update = useUpdatePassport();
   const upload = useUploadDocument();
   const remove = useDeleteDocument();
+  const pack = useDownloadPassport();
   const [params] = useSearchParams();
   const location = useLocation();
   const welcome = params.get('welcome') === '1';
@@ -176,6 +177,7 @@ export default function PassportPage() {
 
   const completeness = passport.data.completeness;
   const docs = documents.data ?? [];
+  const verifiedCount = docs.filter((d) => d.status === 'verified').length;
 
   return (
     <div className={dirty ? 'pb-28' : undefined}>
@@ -270,14 +272,33 @@ export default function PassportPage() {
 
       {/* Documents */}
       <div ref={docsRef} id="documents" className="scroll-mt-20">
-        <div className="mb-3 mt-9 flex items-center justify-between px-1">
+        <div className="mb-3 mt-9 flex items-center justify-between gap-3 px-1">
           <div>
             <h2 className="text-[21px] font-semibold">Documents</h2>
-            <p className="text-[13px] text-ink-3">Reviewed by the BatchMate team. PDF or photo, up to 10 MB.</p>
+            <p className="text-[13px] text-ink-3">Reviewed by the BatchMate team. PDF or photo, up to 500 KB.</p>
           </div>
-          <Button size="sm" onClick={() => setUploadOpen(true)}>
-            <Plus className="h-4 w-4" /> Add
-          </Button>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={verifiedCount === 0 || pack.isPending}
+              loading={pack.isPending}
+              onClick={() =>
+                pack.mutate(docs, {
+                  onSuccess: (n) =>
+                    n > 0
+                      ? toast.success(`Downloading ${n} verified document${n === 1 ? '' : 's'} as a zip`)
+                      : toast.error('No verified documents to download yet'),
+                  onError: (e) => toast.error(e.message),
+                })
+              }
+            >
+              <Download className="h-4 w-4" /> <span className="hidden sm:inline">Download passport</span>
+            </Button>
+            <Button size="sm" onClick={() => setUploadOpen(true)}>
+              <Plus className="h-4 w-4" /> Add
+            </Button>
+          </div>
         </div>
         {documents.isLoading ? (
           <Skeleton className="h-28 rounded-4xl" />
@@ -378,7 +399,7 @@ export default function PassportPage() {
         open={uploadOpen}
         onClose={() => setUploadOpen(false)}
         title="Add a document"
-        subtitle="PDF, JPG, PNG, WEBP or HEIC · up to 10 MB"
+        subtitle="PDF, JPG, PNG, WEBP or HEIC · up to 500 KB"
         footer={
           <Button block size="lg" disabled={!docType} loading={upload.isPending} onClick={() => fileRef.current?.click()}>
             <UploadCloud className="h-5 w-5" /> {docType ? 'Choose a file' : 'Pick what it is first'}

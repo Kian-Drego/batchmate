@@ -4,6 +4,7 @@
  */
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { zipSync } from 'fflate';
 import { completeness, matchAll } from '@shared/matching.ts';
 import type {
   AdminAuditRow,
@@ -234,7 +235,7 @@ export function useUpdatePassport() {
   });
 }
 
-const MAX_BYTES = 10 * 1024 * 1024;
+const MAX_BYTES = 500 * 1024;
 const ALLOWED_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/heic'];
 
 export function useUploadDocument() {
@@ -242,7 +243,7 @@ export function useUploadDocument() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ file, type }: { file: File; type: DocumentType }) => {
-      if (file.size > MAX_BYTES) throw new Error('File is larger than 10 MB');
+      if (file.size > MAX_BYTES) throw new Error('File too large. File size required to be less than or equal to 500 KB.');
       if (!ALLOWED_TYPES.includes(file.type)) throw new Error('Only PDF, JPG, PNG, WEBP or HEIC files are allowed');
       const safeName = file.name.replace(/[^\w.\-]+/g, '_').slice(-120);
       const key = `${uid}/${crypto.randomUUID()}-${safeName}`;
@@ -291,6 +292,56 @@ export async function openDocument(doc: PassportDocumentRow): Promise<void> {
   }
   if (tab) tab.location.href = data.signedUrl;
   else window.location.href = data.signedUrl;
+}
+
+/** A readable, de-duplicated entry name for a document inside the passport zip. */
+function zipEntryName(doc: PassportDocumentRow, used: Set<string>): string {
+  const base = doc.file_name.replace(/[\\/:*?"<>|]+/g, '_').trim() || 'document';
+  const stem = `${doc.type} - ${base}`;
+  let name = stem;
+  let n = 2;
+  while (used.has(name.toLowerCase())) {
+    const dot = stem.lastIndexOf('.');
+    name = dot > 0 ? `${stem.slice(0, dot)} (${n})${stem.slice(dot)}` : `${stem} (${n})`;
+    n += 1;
+  }
+  used.add(name.toLowerCase());
+  return name;
+}
+
+/**
+ * Bundle every verified document into a single zip and trigger a download.
+ * Returns the number of files included (0 when nothing is verified yet).
+ */
+export async function downloadDocumentPassport(docs: PassportDocumentRow[]): Promise<number> {
+  const verified = docs.filter((d) => d.status === 'verified');
+  if (verified.length === 0) return 0;
+
+  const files: Record<string, Uint8Array> = {};
+  const used = new Set<string>();
+  for (const doc of verified) {
+    const { data, error } = await supabase.storage.from('documents').download(doc.storage_key);
+    if (error || !data) continue;
+    files[zipEntryName(doc, used)] = new Uint8Array(await data.arrayBuffer());
+  }
+
+  const names = Object.keys(files);
+  if (names.length === 0) throw new Error('Could not fetch your documents just now. Please try again.');
+
+  const blob = new Blob([zipSync(files)], { type: 'application/zip' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `BatchMate-Passport-${new Date().toISOString().slice(0, 10)}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  return names.length;
+}
+
+export function useDownloadPassport() {
+  return useMutation({ mutationFn: (docs: PassportDocumentRow[]) => downloadDocumentPassport(docs) });
 }
 
 function useApplicationMutation<V>(fn: (v: V) => PromiseLike<{ data: unknown; error: unknown }>) {
