@@ -93,7 +93,7 @@ function StudentFile({ student }: { student: StudentRow }) {
             {detail.data.applications.map((a) => (
               <li key={a.id} className="flex items-center gap-3 rounded-3xl bg-sunken px-4 py-3 shadow-well">
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[14.5px] font-semibold">{a.scholarship.title}</div>
+                  <div className="truncate text-[14.5px] font-semibold">{a.scholarship?.title ?? 'Scholarship unavailable'}</div>
                   <div className="text-[12.5px] text-ink-3">updated {relativeTime(a.updated_at)}</div>
                 </div>
                 <StatusTag status={a.status} />

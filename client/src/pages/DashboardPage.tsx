@@ -201,7 +201,7 @@ export default function DashboardPage() {
                 return (
                   <Link key={a.id} to={`/scholarships/${a.scholarship_id}`} className="press block rounded-4xl border border-line/70 bg-card p-5 shadow-soft hover:shadow-lift">
                     <div className="flex items-center justify-between gap-3">
-                      <div className="truncate text-[15px] font-semibold">{a.scholarship.title}</div>
+                      <div className="truncate text-[15px] font-semibold">{a.scholarship?.title ?? 'Scholarship unavailable'}</div>
                       <StatusTag status={a.status} />
                     </div>
                     <div className="mt-4 flex items-center gap-3">

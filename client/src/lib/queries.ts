@@ -22,7 +22,7 @@ import type { ApplicationStatus, DocumentType } from '@shared/constants.ts';
 import { supabase, toError } from './supabase';
 import { useAuth } from '../context/AuthContext';
 
-export type ApplicationWithScholarship = ApplicationRow & { scholarship: ScholarshipRow };
+export type ApplicationWithScholarship = ApplicationRow & { scholarship: ScholarshipRow | null };
 export type AttemptWithScholarship = ExamAttemptRow & {
   scholarship: Pick<ScholarshipRow, 'id' | 'title' | 'provider'> | null;
 };

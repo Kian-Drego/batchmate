@@ -28,7 +28,7 @@ export default function ApplicationsPage() {
       {awarded.length > 0 && (
         <Surface tone="sage" grain className="mb-4 p-6">
           <div className="text-[13.5px] font-semibold opacity-80">Won so far</div>
-          <div className="num mt-1 text-[40px] font-semibold leading-none">{inr(awarded.reduce((s, a) => s + Number(a.scholarship.amount || 0), 0))}</div>
+          <div className="num mt-1 text-[40px] font-semibold leading-none">{inr(awarded.reduce((s, a) => s + Number(a.scholarship?.amount || 0), 0))}</div>
           <div className="mt-1.5 text-[14px] opacity-80">
             across {awarded.length} scholarship{awarded.length === 1 ? '' : 's'}. Renewal rules live in Prep.
           </div>
@@ -66,7 +66,7 @@ export default function ApplicationsPage() {
             {list.map((a, i) => {
               const completed = a.checklist.filter((c) => c.done).length;
               const pct = a.checklist.length ? (completed / a.checklist.length) * 100 : 0;
-              const dl = deadlineLabel(a.scholarship.deadline);
+              const dl = deadlineLabel(a.scholarship?.deadline);
               return (
                 <li key={a.id} className="min-w-0">
                   <button
@@ -81,8 +81,8 @@ export default function ApplicationsPage() {
                       <StatusTag status={a.status} />
                       <span className="pt-1 text-[12.5px] text-ink-3">{relativeTime(a.updated_at)}</span>
                     </div>
-                    <div className="mt-3 line-clamp-2 font-display text-[19px] font-semibold leading-snug">{a.scholarship.title}</div>
-                    <div className="mt-0.5 truncate text-[13.5px] text-ink-3">{a.scholarship.provider}</div>
+                    <div className="mt-3 line-clamp-2 font-display text-[19px] font-semibold leading-snug">{a.scholarship?.title ?? 'Scholarship unavailable'}</div>
+                    <div className="mt-0.5 truncate text-[13.5px] text-ink-3">{a.scholarship?.provider ?? ''}</div>
                     <div className="mt-4 flex items-center gap-3">
                       <Meter value={pct} tone={pct === 100 ? 'sage' : 'ink'} />
                       <span className="num shrink-0 text-[13px] text-ink-3">
@@ -101,7 +101,7 @@ export default function ApplicationsPage() {
         )}
       </div>
 
-      {selected && <ApplySheet open={sheetOpen} onClose={() => setSheetOpen(false)} scholarship={selected.scholarship} application={selected} />}
+      {selected?.scholarship && <ApplySheet open={sheetOpen} onClose={() => setSheetOpen(false)} scholarship={selected.scholarship} application={selected} />}
     </div>
   );
 }
