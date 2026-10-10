@@ -54,7 +54,7 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    // Mirror the production /api/edge proxy (see client/api/edge) so Edge
+    // Mirror the production /api/edge rewrite (see vercel.json) so Edge
     // Function calls work from the Vite dev server too.
     proxy: {
       '/api/edge': {
