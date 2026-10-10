@@ -617,14 +617,55 @@ export function useCatalogue() {
 
 export type ScholarshipInput = Omit<ScholarshipRow, 'id' | 'created_at' | 'updated_at' | 'last_scraped_at'> & { id?: string };
 
+/**
+ * Columns an admin may write. `select('*')` on the catalogue also returns the
+ * generated `search` column; echoing it back in an update fails with
+ * `428C9: column "search" can only be updated to DEFAULT`. Only send the real,
+ * writable fields.
+ */
+const SCHOLARSHIP_FIELDS = [
+  'provider',
+  'title',
+  'type',
+  'amount',
+  'amount_description',
+  'degree',
+  'current_year_allowed',
+  'income_limit',
+  'marks_min',
+  'category',
+  'state_domicile',
+  'gender',
+  'deadline',
+  'required_documents',
+  'selection_process',
+  'aptitude_test_required',
+  'disability_required',
+  'renewal_criteria',
+  'official_source_url',
+  'application_mode',
+  'external_portal_url',
+  'application_steps',
+  'description',
+  'exam_pattern',
+  'tags',
+  'active',
+] as const satisfies readonly (keyof ScholarshipInput)[];
+
+function scholarshipPayload(input: ScholarshipInput): Record<string, unknown> {
+  const row: Record<string, unknown> = {};
+  for (const key of SCHOLARSHIP_FIELDS) row[key] = input[key];
+  return row;
+}
+
 export function useSaveScholarship() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: ScholarshipInput) => {
-      const { id, ...row } = input;
+      const row = scholarshipPayload(input);
       return run<ScholarshipRow>(
-        id
-          ? supabase.from('scholarships').update(row).eq('id', id).select('*').single()
+        input.id
+          ? supabase.from('scholarships').update(row).eq('id', input.id).select('*').single()
           : supabase.from('scholarships').insert(row).select('*').single()
       );
     },
